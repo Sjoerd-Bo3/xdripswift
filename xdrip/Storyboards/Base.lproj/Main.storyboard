@@ -747,6 +747,12 @@
                                             <action selector="screenLockToolbarButtonAction:" destination="9pv-A4-QxB" id="L14-hJ-4a9"/>
                                         </connections>
                                     </barButtonItem>
+                                    <barButtonItem style="plain" systemItem="flexibleSpace" id="0iC-I9-5D5"/>
+                                    <barButtonItem title="Share" image="antenna.radiowaves.left.and.right" catalog="system" id="yZC-h9-Yy6">
+                                        <connections>
+                                            <action selector="shareToolbarButtonAction:" destination="9pv-A4-QxB" id="M8U-UQ-Xnd"/>
+                                        </connections>
+                                    </barButtonItem>
                                 </items>
                             </toolbar>
                             <stackView opaque="NO" contentMode="scaleToFill" axis="vertical" spacing="3" translatesAutoresizingMaskIntoConstraints="NO" id="TCd-nD-ZjE">
@@ -1562,6 +1568,7 @@
                         <outlet property="pumpReservoirValueOutlet" destination="O9w-xa-Fpd" id="xCv-1c-I4p"/>
                         <outlet property="pumpViewOutlet" destination="9nN-Bd-qn1" id="GMz-8k-yKg"/>
                         <outlet property="screenLockToolbarButtonOutlet" destination="wfX-50-2w6" id="r70-by-pce"/>
+                        <outlet property="shareToolbarButtonOutlet" destination="yZC-h9-Yy6" id="uE7-9T-Zjo"/>
                         <outlet property="segmentedControlChartHours" destination="9LS-Vp-uGd" id="ymu-eS-Vpb"/>
                         <outlet property="segmentedControlStatisticsDays" destination="Xuy-hn-ozf" id="vOk-4p-M8g"/>
                         <outlet property="segmentedControlStatisticsDaysView" destination="qG7-Ub-mzA" id="shD-NU-LBm"/>

@@ -59,6 +59,11 @@ final class RootViewController: UIViewController, ObservableObject {
     @IBAction func screenLockToolbarButtonAction(_ sender: UIBarButtonItem) {
         screenLockAlert(nightMode: true)
     }
+
+    @IBOutlet weak var shareToolbarButtonOutlet: UIBarButtonItem!
+    @IBAction func shareToolbarButtonAction(_ sender: UIBarButtonItem) {
+        presentShareToggleConfirmation()
+    }
     
     
     // **************************
@@ -629,6 +634,8 @@ final class RootViewController: UIViewController, ObservableObject {
         
         // check if allowed to rotate to landscape view
         updateScreenRotationSettings()
+
+        updateShareToolbarButton()
         
         // viewWillAppear when user switches eg from Settings Tab to Home Tab - latest reading value needs to be shown on the view, and also update minutes ago etc.
         updateLabelsAndChart(overrideApplicationState: true)
@@ -925,6 +932,10 @@ final class RootViewController: UIViewController, ObservableObject {
         
         // if the Nightscout device status changes, update the UI
         UserDefaults.standard.addObserver(self, forKeyPath: UserDefaults.Key.nightscoutDeviceStatus.rawValue, options: .new, context: nil)
+
+        // keep share toolbar button in sync with settings
+        UserDefaults.standard.addObserver(self, forKeyPath: UserDefaults.Key.loopShareType.rawValue, options: .new, context: nil)
+        UserDefaults.standard.addObserver(self, forKeyPath: UserDefaults.Key.uploadReadingstoDexcomShare.rawValue, options: .new, context: nil)
         
         // if the widget standby options change, update the widget data
         UserDefaults.standard.addObserver(self, forKeyPath: UserDefaults.Key.allowStandByHighContrast.rawValue, options: .new, context: nil)
@@ -1760,6 +1771,9 @@ final class RootViewController: UIViewController, ObservableObject {
             
         case UserDefaults.Key.updateSnoozeStatus:
             updateSnoozeStatus()
+
+        case UserDefaults.Key.loopShareType, UserDefaults.Key.uploadReadingstoDexcomShare:
+            updateShareToolbarButton()
             
         default:
             break
@@ -1823,6 +1837,9 @@ final class RootViewController: UIViewController, ObservableObject {
         sensorToolbarButtonOutlet.title = Texts_HomeView.sensor
         calibrateToolbarButtonOutlet.title = Texts_HomeView.calibrationButton
         screenLockToolbarButtonOutlet.title = screenIsLocked ? Texts_HomeView.unlockButton : Texts_HomeView.lockButton
+        shareToolbarButtonOutlet.title = Texts_HomeView.shareToggleButtonTitle
+        shareToolbarButtonOutlet.image = UIImage(systemName: "antenna.radiowaves.left.and.right")
+        updateShareToolbarButton()
         
         // provide the older SF Symbol for the calibrate button for users below iOS17
         if #available(iOS 17.0, *) {
@@ -1842,6 +1859,52 @@ final class RootViewController: UIViewController, ObservableObject {
     }
     
     // MARK: - private helper functions
+
+    private func presentShareToggleConfirmation() {
+        let isActive = isShareToggleActive()
+        let title = Texts_HomeView.shareToggleTitle
+        let message = isActive ? Texts_HomeView.shareToggleDisableMessage : Texts_HomeView.shareToggleEnableMessage
+        let confirmTitle = isActive ? Texts_HomeView.shareToggleDisableAction : Texts_HomeView.shareToggleEnableAction
+        let confirmStyle: UIAlertAction.Style = isActive ? .destructive : .default
+
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+
+        alert.addAction(UIAlertAction(title: Texts_Common.Cancel, style: .cancel, handler: nil))
+        alert.addAction(UIAlertAction(title: confirmTitle, style: confirmStyle, handler: { [weak self] _ in
+            self?.setShareUploadsActive(!isActive)
+        }))
+
+        present(alert, animated: true, completion: nil)
+    }
+
+    private func setShareUploadsActive(_ isActive: Bool) {
+        if isActive {
+            UserDefaults.standard.loopShareType = .trio
+            UserDefaults.standard.uploadReadingstoDexcomShare = true
+        } else {
+            UserDefaults.standard.loopShareType = .disabled
+            UserDefaults.standard.uploadReadingstoDexcomShare = false
+        }
+
+        updateShareToolbarButton()
+    }
+
+    private func isShareToggleActive() -> Bool {
+        return UserDefaults.standard.loopShareType == .trio && UserDefaults.standard.uploadReadingstoDexcomShare
+    }
+
+    private func updateShareToolbarButton() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self, self.isViewLoaded, let shareButton = self.shareToolbarButtonOutlet else { return }
+
+            let isActive = self.isShareToggleActive()
+            shareButton.title = Texts_HomeView.shareToggleButtonTitle
+            shareButton.image = UIImage(systemName: "antenna.radiowaves.left.and.right")
+            shareButton.tintColor = isActive ? UIColor.systemGreen : UIColor.systemRed
+            shareButton.accessibilityLabel = isActive ? Texts_HomeView.shareToggleActiveAccessibility : Texts_HomeView.shareToggleInactiveAccessibility
+            shareButton.accessibilityHint = Texts_HomeView.shareToggleAccessibilityHint
+        }
+    }
     
     /// creates notification
     private func createNotification(title: String?, body: String?, identifier: String, sound: UNNotificationSound?) {

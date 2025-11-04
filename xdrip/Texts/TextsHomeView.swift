@@ -43,6 +43,42 @@ enum Texts_HomeView {
     static let unlockButton:String = {
         return NSLocalizedString("unlock", tableName: filename, bundle: Bundle.main, value: "Unlock", comment: "Text in button on home screen")
     }()
+
+    static let shareToggleButtonTitle: String = {
+        return NSLocalizedString("shareToggleButtonTitle", tableName: filename, bundle: Bundle.main, value: "Share", comment: "Title for the share toolbar button")
+    }()
+
+    static let shareToggleTitle: String = {
+        return NSLocalizedString("shareToggleTitle", tableName: filename, bundle: Bundle.main, value: "Share Uploads", comment: "Alert title when toggling uploads")
+    }()
+
+    static let shareToggleEnableMessage: String = {
+        return NSLocalizedString("shareToggleEnableMessage", tableName: filename, bundle: Bundle.main, value: "Enable uploads to Trio and Dexcom Share?", comment: "Alert message when enabling share uploads")
+    }()
+
+    static let shareToggleDisableMessage: String = {
+        return NSLocalizedString("shareToggleDisableMessage", tableName: filename, bundle: Bundle.main, value: "Disable uploads to Trio and Dexcom Share?", comment: "Alert message when disabling share uploads")
+    }()
+
+    static let shareToggleEnableAction: String = {
+        return NSLocalizedString("shareToggleEnableAction", tableName: filename, bundle: Bundle.main, value: "Enable", comment: "Alert confirm button label when enabling share uploads")
+    }()
+
+    static let shareToggleDisableAction: String = {
+        return NSLocalizedString("shareToggleDisableAction", tableName: filename, bundle: Bundle.main, value: "Disable", comment: "Alert confirm button label when disabling share uploads")
+    }()
+
+    static let shareToggleActiveAccessibility: String = {
+        return NSLocalizedString("shareToggleActiveAccessibility", tableName: filename, bundle: Bundle.main, value: "Share uploads active", comment: "Accessibility label when share uploads are active")
+    }()
+
+    static let shareToggleInactiveAccessibility: String = {
+        return NSLocalizedString("shareToggleInactiveAccessibility", tableName: filename, bundle: Bundle.main, value: "Share uploads inactive", comment: "Accessibility label when share uploads are inactive")
+    }()
+
+    static let shareToggleAccessibilityHint: String = {
+        return NSLocalizedString("shareToggleAccessibilityHint", tableName: filename, bundle: Bundle.main, value: "Double tap to confirm toggling uploads", comment: "Accessibility hint for the share toolbar button")
+    }()
     
     static let screenLockTitle:String = {
         return NSLocalizedString("screenlocktitle", tableName: filename, bundle: Bundle.main, value: "Screen Lock Enabled", comment: "Screen Lock Title")
