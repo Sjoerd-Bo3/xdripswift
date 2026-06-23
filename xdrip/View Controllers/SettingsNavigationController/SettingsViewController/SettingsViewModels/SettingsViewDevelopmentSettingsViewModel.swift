@@ -45,7 +45,10 @@ fileprivate enum Setting:Int, CaseIterable {
     
     /// should we allow 60-second writes to HealthKit (in the case of Libre 2 Direct as an example)?
     case storeFrequentReadingsInHealthKit = 13
-    
+
+    /// when sharing to Trio, also write the rich CGM status / sensor lifecycle payload (opt-in, default off)
+    case shareExtendedCgmStatusToTrio = 14
+
 }
 
 class SettingsViewDevelopmentSettingsViewModel: NSObject, SettingsViewModelProtocol {
@@ -115,16 +118,19 @@ class SettingsViewDevelopmentSettingsViewModel: NSObject, SettingsViewModelProto
             
         case .storeFrequentReadingsInHealthKit:
             return Texts_SettingsView.labelStoreFrequentReadingsInHealthKit
+
+        case .shareExtendedCgmStatusToTrio:
+            return Texts_SettingsView.shareExtendedCgmStatusToTrio
         }
     }
-    
+
     func accessoryType(index: Int) -> UITableViewCell.AccessoryType {
-        
+
         guard let setting = Setting(rawValue: index) else { fatalError("Unexpected Section") }
-        
+
         switch setting {
-            
-        case .showDeveloperSettings, .NSLogEnabled, .OSLogEnabled, .suppressUnLockPayLoad, .shareToLoopOnceEvery5Minutes, .allowStandByHighContrast, .forceStandByBigNumbers, .storeFrequentReadingsInNightscout, .storeFrequentReadingsInHealthKit:
+
+        case .showDeveloperSettings, .NSLogEnabled, .OSLogEnabled, .suppressUnLockPayLoad, .shareToLoopOnceEvery5Minutes, .allowStandByHighContrast, .forceStandByBigNumbers, .storeFrequentReadingsInNightscout, .storeFrequentReadingsInHealthKit, .shareExtendedCgmStatusToTrio:
             return .none
             
         case .loopShareType, .loopDelay, .libreLinkUpVersion, .remainingComplicationUserInfoTransfers, .CAGEMaxHours:
@@ -139,7 +145,7 @@ class SettingsViewDevelopmentSettingsViewModel: NSObject, SettingsViewModelProto
         
         switch setting {
             
-        case .showDeveloperSettings, .NSLogEnabled, .OSLogEnabled, .suppressUnLockPayLoad, .shareToLoopOnceEvery5Minutes, .loopDelay, .allowStandByHighContrast, .forceStandByBigNumbers, .storeFrequentReadingsInNightscout, .storeFrequentReadingsInHealthKit:
+        case .showDeveloperSettings, .NSLogEnabled, .OSLogEnabled, .suppressUnLockPayLoad, .shareToLoopOnceEvery5Minutes, .loopDelay, .allowStandByHighContrast, .forceStandByBigNumbers, .storeFrequentReadingsInNightscout, .storeFrequentReadingsInHealthKit, .shareExtendedCgmStatusToTrio:
             return nil
             
         case .loopShareType:
@@ -237,7 +243,10 @@ class SettingsViewDevelopmentSettingsViewModel: NSObject, SettingsViewModelProto
             
         case .storeFrequentReadingsInHealthKit:
             return UISwitch(isOn: UserDefaults.standard.storeFrequentReadingsInHealthKit, action: {(isOn:Bool) in UserDefaults.standard.storeFrequentReadingsInHealthKit = isOn})
-            
+
+        case .shareExtendedCgmStatusToTrio:
+            return UISwitch(isOn: UserDefaults.standard.shareExtendedCgmStatusToTrio, action: {(isOn: Bool) in UserDefaults.standard.shareExtendedCgmStatusToTrio = isOn})
+
         case .loopShareType, .loopDelay, .remainingComplicationUserInfoTransfers, .libreLinkUpVersion, .CAGEMaxHours:
             return nil
             
@@ -255,7 +264,7 @@ class SettingsViewDevelopmentSettingsViewModel: NSObject, SettingsViewModelProto
         
         switch setting {
             
-        case .showDeveloperSettings, .NSLogEnabled, .OSLogEnabled, .suppressUnLockPayLoad, .shareToLoopOnceEvery5Minutes, .allowStandByHighContrast, .forceStandByBigNumbers:
+        case .showDeveloperSettings, .NSLogEnabled, .OSLogEnabled, .suppressUnLockPayLoad, .shareToLoopOnceEvery5Minutes, .allowStandByHighContrast, .forceStandByBigNumbers, .shareExtendedCgmStatusToTrio:
             return .nothing
             
         case .loopShareType:

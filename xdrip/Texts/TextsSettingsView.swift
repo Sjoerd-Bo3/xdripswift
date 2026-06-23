@@ -869,7 +869,11 @@ class Texts_SettingsView {
     static let shareToLoopOnceEvery5Minutes: String = {
         return NSLocalizedString("shareToLoopOnceEvery5Minutes", tableName: filename, bundle: Bundle.main, value: "Share with OS-AID every 5 mins", comment: "Should loop data be shared only every 5 minutes")
     }()
-    
+
+    static let shareExtendedCgmStatusToTrio: String = {
+        return NSLocalizedString("shareExtendedCgmStatusToTrio", tableName: filename, bundle: Bundle.main, value: "Share CGM status to Trio", comment: "When sharing to Trio, also share the rich CGM sensor lifecycle / status payload")
+    }()
+
     static let showDeveloperSettings: String = {
         return NSLocalizedString("showDeveloperSettings", tableName: filename, bundle: Bundle.main, value: "Show Developer Settings", comment: "developer settings, show them or hide them")
     }()
