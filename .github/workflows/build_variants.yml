@@ -8,11 +8,12 @@ run-name: ${{ inputs.phase }} · variants from ${{ inputs.source_ref || github.r
 # Loop/Trio container.
 #
 # Recommended order (run the workflow once per phase):
-#   1. phase = identifiers  -> creates the bundle IDs AND the App Store Connect app
-#                              records for each variant (via the API key)
-#   2. (manual, once) tick your existing Loop/Trio app groups onto the new
-#      left/right bundle IDs (App Store Connect app-group *attach* is not reliably
-#      automatable with API-key auth). Normal is already set up from prior builds.
+#   1. phase = identifiers  -> creates the bundle IDs for each variant (via the API key)
+#   2. (manual, once) in App Store Connect create an app record for each variant's
+#      main app, and tick your existing Loop/Trio app groups onto the new
+#      left/right bundle IDs. Neither app-record creation nor app-group attach is
+#      reliably automatable with API-key-only auth. Normal is already set up from
+#      prior builds.
 #   3. phase = build        -> builds each variant and uploads to its TestFlight app
 
 on:
