@@ -17,6 +17,8 @@ public enum FollowerDataSourceType: Int, CaseIterable {
 
     case nightscout = 0
     case libreLinkUp = 1
+    case libreLinkUpRussia = 2
+    case dexcomShare = 3
     
     public var rawValue: Int {
         switch self {
@@ -24,6 +26,10 @@ public enum FollowerDataSourceType: Int, CaseIterable {
             return 0
         case .libreLinkUp:
             return 1
+        case .libreLinkUpRussia:
+            return 2
+        case .dexcomShare:
+            return 3
         }
     }
     
@@ -33,6 +39,10 @@ public enum FollowerDataSourceType: Int, CaseIterable {
             return "Nightscout"
         case .libreLinkUp:
             return "LibreLinkUp"
+        case .libreLinkUpRussia:
+            return "LibreLinkUp Russia"
+        case .dexcomShare:
+            return "Dexcom Share"
         }
     }
     
@@ -44,6 +54,10 @@ public enum FollowerDataSourceType: Int, CaseIterable {
             return "Nightscout"
         case .libreLinkUp:
             return "LibreLinkUp"
+        case .libreLinkUpRussia:
+            return "LibreLinkUp Russia"
+        case .dexcomShare:
+            return "Dexcom Share"
         }
     }
     
@@ -51,8 +65,10 @@ public enum FollowerDataSourceType: Int, CaseIterable {
         switch self {
         case .nightscout:
             return "NS"
-        case .libreLinkUp:
+        case .libreLinkUp, .libreLinkUpRussia:
             return "LL"
+        case .dexcomShare:
+            return "DS"
         }
     }
     
@@ -60,8 +76,10 @@ public enum FollowerDataSourceType: Int, CaseIterable {
         switch self {
         case .nightscout:
             return ConstantsFollower.secondsUntilFollowerDisconnectWarningNightscout
-        case .libreLinkUp:
+        case .libreLinkUp, .libreLinkUpRussia:
             return ConstantsFollower.secondsUntilFollowerDisconnectWarningLibreLinkUp
+        case .dexcomShare:
+            return ConstantsFollower.secondsUntilFollowerDisconnectWarningDexcomShare
         }
     }
 
@@ -70,7 +88,7 @@ public enum FollowerDataSourceType: Int, CaseIterable {
         switch self {
         case .nightscout:
             return false
-        case .libreLinkUp:
+        case .libreLinkUp, .libreLinkUpRussia, .dexcomShare:
             return true
         }
     }
@@ -83,6 +101,10 @@ public enum FollowerDataSourceType: Int, CaseIterable {
             return "Nightscout Follower"
         case .libreLinkUp:
             return "LibreLinkUp Follower"
+        case .libreLinkUpRussia:
+            return "LibreLinkUp Russia Follower"
+        case .dexcomShare:
+            return "Dexcom Share Follower"
         }
     }
     

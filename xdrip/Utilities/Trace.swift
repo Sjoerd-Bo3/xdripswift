@@ -64,7 +64,7 @@ fileprivate var traceFileName:URL?
 /// - category is the same as used for creating the log (see class ConstantsLog), it's repeated here to use in NSLog
 /// - args : optional list of parameters that will be used. MAXIMUM 10 !
 ///
-/// Example 
+/// Example
 func trace(_ message: StaticString, log:OSLog, category: String, type: OSLogType, _ args: CVarArg...) {
 
     // initialize traceFileName if needed
@@ -178,7 +178,7 @@ func trace(_ message: StaticString, log:OSLog, category: String, type: OSLogType
     // nslog if enabled and if type = debug, then check also if debug logging is required
     if UserDefaults.standard.NSLogEnabled && (type != .debug || (type == .debug && UserDefaults.standard.addDebugLevelLogsInTraceFileAndNSLog)) {
         
-        NSLog("%@", ConstantsLog.tracePrefix + " " + timeStamp + " " + applicationVersion + " " + buildNumber + " " + category + " " + Date().toString(timeStyle: .medium, dateStyle: .none) + " " + actualMessage)
+        NSLog("%@", ConstantsLog.tracePrefix + " " + timeStamp + " " + applicationVersion + " " + buildNumber + " " + category + " " + Date().toStringForTrace(timeStyle: .medium, dateStyle: .none) + " " + actualMessage)
         
     }
     
@@ -210,10 +210,16 @@ func trace(_ message: StaticString, log:OSLog, category: String, type: OSLogType
    
     
     // check if tracefile has reached limit size and if yes rotate the files
-    if traceFileName.fileSize > ConstantsTrace.maximumFileSizeInMB * 1024 * 1024 {
-        
-        rotateTraceFiles()
-        
+    // NOTE: Changed implementation after TestFlight crash report showing "URL.fileSize.getter + 20".
+    // The old version used the extension fileSize which called FileManager.attributesOfItem(atPath:) - this could
+    // crash if the file was being rotated or removed concurrently (race condition during trace log writes).
+    // Using URL.resourceValues(forKeys:) makes the lookup safe and avoids trapping on transient I/O states.
+    if let resourceValues = try? traceFileName.resourceValues(forKeys: [.fileSizeKey]),
+       let fileSizeInt = resourceValues.fileSize {
+        let maxBytes = UInt64(ConstantsTrace.maximumFileSizeInMB) * 1024 * 1024
+        if UInt64(fileSizeInt) > maxBytes {
+            rotateTraceFiles()
+        }
     }
     
 }
@@ -318,27 +324,26 @@ class Trace {
         
         var traceInfo = ""
         
-        traceInfo.appendStringAndNewLine("\nDate & timezone: " + Date().toString(timeStyle: .full, dateStyle: .medium))
+        traceInfo.appendStringAndNewLine("\nDate & timezone: " + Date().toStringForTrace(timeStyle: .full, dateStyle: .medium))
         
         traceInfo.appendStringAndNewLine(paragraphSeperator)
         
         // app name, version and build
         traceInfo.appendStringAndNewLine("App name: " + ConstantsHomeView.applicationName)
         traceInfo.appendStringAndNewLine("Version: " + applicationVersion)
-        traceInfo.appendStringAndNewLine("Build number: " + buildNumber + " (" + timeStampAppBuild.toString(timeStyle: .none, dateStyle: .medium) + ")\n")
+        traceInfo.appendStringAndNewLine("Build number: " + buildNumber + " (" + timeStampAppBuild.toStringForTrace(timeStyle: .none, dateStyle: .medium) + ")\n")
         
         // app install and open timestamps
-        traceInfo.appendStringAndNewLine("Installed on: " + timeStampAppInstall.toString(timeStyle: .short, dateStyle: .medium) + " (" + timeStampAppInstall.daysAndHoursAgo(appendAgo: true) + ")")
+        traceInfo.appendStringAndNewLine("Installed on: " + timeStampAppInstall.toStringForTrace(timeStyle: .short, dateStyle: .medium) + " (" + timeStampAppInstall.daysAndHoursAgo(appendAgo: true) + ")")
                 
         if let timeStampAppLaunch = UserDefaults.standard.timeStampAppLaunch {
-            traceInfo.appendStringAndNewLine("Last opened on: " + timeStampAppLaunch.toString(timeStyle: .short, dateStyle: .medium) + " (" + timeStampAppLaunch.daysAndHoursAgo(appendAgo: true) + ")")
+            traceInfo.appendStringAndNewLine("Last opened on: " + timeStampAppLaunch.toStringForTrace(timeStyle: .short, dateStyle: .medium) + " (" + timeStampAppLaunch.daysAndHoursAgo(appendAgo: true) + ")")
         }
         
         traceInfo.appendStringAndNewLine(paragraphSeperator)
         
         traceInfo.appendStringAndNewLine("Help settings:")
         traceInfo.appendStringAndNewLine("    Translate automatically: " + UserDefaults.standard.translateOnlineHelp.description)
-        traceInfo.appendStringAndNewLine("    Show help icon: " + UserDefaults.standard.showHelpIcon.description)
 
         // master or follower mode?
         traceInfo.appendStringAndNewLine("\nCGM Data Source: " + (UserDefaults.standard.isMaster ? "Master" : UserDefaults.standard.followerDataSourceType.descriptionForLogging()))
@@ -384,9 +389,6 @@ class Trace {
         
         traceInfo.appendStringAndNewLine("\nTreatments settings:")
         traceInfo.appendStringAndNewLine("    Show treatments: " + UserDefaults.standard.showTreatmentsOnChart.description)
-        traceInfo.appendStringAndNewLine("    Micro-bolus threshold: " + UserDefaults.standard.smallBolusTreatmentThreshold.description)
-        traceInfo.appendStringAndNewLine("    Show micro-bolus: " + UserDefaults.standard.showSmallBolusTreatmentsOnChart.description)
-        traceInfo.appendStringAndNewLine("    Offset carbs on chart: " + UserDefaults.standard.offsetCarbTreatmentsOnChart.description)
         
         traceInfo.appendStringAndNewLine("\nStatistics settings:")
         traceInfo.appendStringAndNewLine("    Show statistics: " + UserDefaults.standard.showStatistics.description)
@@ -396,6 +398,7 @@ class Trace {
           
         traceInfo.appendStringAndNewLine("\nNightscout settings:")
         traceInfo.appendStringAndNewLine("    Nightscout enabled: " + UserDefaults.standard.nightscoutEnabled.description)
+        traceInfo.appendStringAndNewLine("    AID Follow Type: " + UserDefaults.standard.nightscoutFollowType.description)
         if UserDefaults.standard.nightscoutEnabled {
             traceInfo.appendStringAndNewLine("    URL: " + ((UserDefaults.standard.nightscoutUrl?.description ?? "") != "" ? "present" : "missing"))
             traceInfo.appendStringAndNewLine("    API_SECRET: " + ((UserDefaults.standard.nightscoutAPIKey?.description ?? "") != "" ? "present" : "missing"))
@@ -409,8 +412,8 @@ class Trace {
             traceInfo.appendStringAndNewLine("    Account name: " + ((UserDefaults.standard.dexcomShareAccountName?.description ?? "") != "" ? "present" : "missing"))
             traceInfo.appendStringAndNewLine("    Password: " + ((UserDefaults.standard.dexcomSharePassword?.description ?? "") != "" ? "present" : "missing"))
             traceInfo.appendStringAndNewLine("    Use US servers: " + UserDefaults.standard.useUSDexcomShareurl .description)
-            traceInfo.appendStringAndNewLine("    Receiver serial number: " + (UserDefaults.standard.dexcomShareSerialNumber?.description ?? "nil"))
-            traceInfo.appendStringAndNewLine("    Use upload schedule: " + UserDefaults.standard.dexcomShareUseSchedule.description)
+            traceInfo.appendStringAndNewLine("    Receiver serial number: " + (UserDefaults.standard.dexcomShareUploadSerialNumber?.description ?? "nil"))
+            traceInfo.appendStringAndNewLine("    Use upload schedule: " + UserDefaults.standard.dexcomShareUploadUseSchedule.description)
         }
                                              
         traceInfo.appendStringAndNewLine("\nApple Health settings:")
@@ -430,7 +433,10 @@ class Trace {
         traceInfo.appendStringAndNewLine("\nApple Watch settings:")
         traceInfo.appendStringAndNewLine("    Show values in complications: " + UserDefaults.standard.showDataInWatchComplications.description)
         if let agreementDate = UserDefaults.standard.watchComplicationUserAgreementDate {
-            traceInfo.appendStringAndNewLine("    User agreement date: " + agreementDate.toString(timeStyle: .short, dateStyle: .medium) + " (" + agreementDate.daysAndHoursAgo(appendAgo: true) + ")")
+            traceInfo.appendStringAndNewLine("    User agreement date: " + agreementDate.toStringForTrace(timeStyle: .short, dateStyle: .medium) + " (" + agreementDate.daysAndHoursAgo(appendAgo: true) + ")")
+            if let remainingComplicationUserInfoTransfers = UserDefaults.standard.remainingComplicationUserInfoTransfers {
+                traceInfo.appendStringAndNewLine("    Remaining complication updates: " + remainingComplicationUserInfoTransfers.description + " / 50")
+            }
         } else {
             traceInfo.appendStringAndNewLine("    User agreement date: nil")
         }
@@ -463,7 +469,11 @@ class Trace {
         traceInfo.appendStringAndNewLine("    OS log enabled: " + UserDefaults.standard.OSLogEnabled.description)
         traceInfo.appendStringAndNewLine("    Suppress unlock payload: " + UserDefaults.standard.suppressUnLockPayLoad.description)
         traceInfo.appendStringAndNewLine("    OS-AID share type: " + UserDefaults.standard.loopShareType.description)
+        traceInfo.appendStringAndNewLine("    OS-AID share every 5 mins?: " + UserDefaults.standard.shareToLoopOnceEvery5Minutes.description)
         traceInfo.appendStringAndNewLine("    LibreLinkUp version: " + (UserDefaults.standard.libreLinkUpVersion?.description ?? "nil"))
+        traceInfo.appendStringAndNewLine("    CAGE max hours: " + UserDefaults.standard.CAGEMaxHours.description + " (default: " + ConstantsHomeView.CAGEDefaultMaxHours.description + ")")
+        traceInfo.appendStringAndNewLine("    StandBy night mode enabled: " + UserDefaults.standard.allowStandByHighContrast.description)
+        traceInfo.appendStringAndNewLine("    StandBy big numbers enabled: " + UserDefaults.standard.forceStandByBigNumbers.description)
         
         // misc settings
         traceInfo.appendStringAndNewLine("\nMisc settings:")
@@ -484,7 +494,7 @@ class Trace {
         if !(!UserDefaults.standard.isMaster && UserDefaults.standard.followerDataSourceType == .nightscout) {
             traceInfo.appendStringAndNewLine("    Description: " + (UserDefaults.standard.activeSensorDescription?.description ?? "nil"))
             if let startDate = UserDefaults.standard.activeSensorStartDate {
-                traceInfo.appendStringAndNewLine("    Sensor start date: " + startDate.toString(timeStyle: .short, dateStyle: .medium) + " (" + startDate.daysAndHoursAgo(appendAgo: true) + ")")
+                traceInfo.appendStringAndNewLine("    Sensor start date: " + startDate.toStringForTrace(timeStyle: .short, dateStyle: .medium) + " (" + startDate.daysAndHoursAgo(appendAgo: true) + ")")
             } else {
                 traceInfo.appendStringAndNewLine("    Sensor start date: nil")
             }
@@ -558,17 +568,19 @@ class Trace {
                             
                             traceInfo.appendStringAndNewLine("        Type: " + bluetoothPeripheralType.rawValue)
                             
-                            traceInfo.appendStringAndNewLine("        Transmitter start date: " + (dexcomG5.transmitterStartDate?.toString(timeStyle: .short, dateStyle: .medium) ?? "nil") + " (" + (dexcomG5.transmitterStartDate?.daysAndHoursAgo(appendAgo: true) ?? "nil") + ")")
+                            traceInfo.appendStringAndNewLine("        Transmitter start date: " + (dexcomG5.transmitterStartDate?.toStringForTrace(timeStyle: .short, dateStyle: .medium) ?? "nil") + " (" + (dexcomG5.transmitterStartDate?.daysAndHoursAgo(appendAgo: true) ?? "nil") + ")")
                             
-                            traceInfo.appendStringAndNewLine("        Sensor start date: " + (dexcomG5.sensorStartDate?.toString(timeStyle: .short, dateStyle: .medium) ?? "nil") + " (" + (dexcomG5.sensorStartDate?.daysAndHoursAgo(appendAgo: true) ?? "nil") + ")")
+                            traceInfo.appendStringAndNewLine("        Sensor start date: " + (dexcomG5.sensorStartDate?.toStringForTrace(timeStyle: .short, dateStyle: .medium) ?? "nil") + " (" + (dexcomG5.sensorStartDate?.daysAndHoursAgo(appendAgo: true) ?? "nil") + ")")
                             
                             traceInfo.appendStringAndNewLine("        Sensor status: " + (dexcomG5.sensorStatus?.description ?? "nil"))
                             
                             traceInfo.appendStringAndNewLine("        Firmware: " + (dexcomG5.firmwareVersion?.description ?? "nil"))
                             
-                            traceInfo.appendStringAndNewLine("        Read from Dexcom app: " + dexcomG5.useOtherApp.description)
+                            traceInfo.appendStringAndNewLine("        Use With Other App: " + dexcomG5.useOtherApp.description)
                             
-                            traceInfo.appendStringAndNewLine("        Last reset: " + (dexcomG5.lastResetTimeStamp?.toString(timeStyle: .short, dateStyle: .medium) ?? "nil") + " (" + (dexcomG5.lastResetTimeStamp?.daysAndHoursAgo(appendAgo: true) ?? "nil") + ")")
+                            traceInfo.appendStringAndNewLine("        Is Anubis?: " + dexcomG5.isAnubis.description)
+                            
+                            traceInfo.appendStringAndNewLine("        Last reset: " + (dexcomG5.lastResetTimeStamp?.toStringForTrace(timeStyle: .short, dateStyle: .medium) ?? "nil") + " (" + (dexcomG5.lastResetTimeStamp?.daysAndHoursAgo(appendAgo: true) ?? "nil") + ")")
                             
                             // if needed additional specific info can be added
                             traceInfo.appendStringAndNewLine("        Voltage A: " + dexcomG5.voltageA.description + "0mV")

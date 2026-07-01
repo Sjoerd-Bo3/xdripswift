@@ -43,6 +43,42 @@ enum Texts_HomeView {
     static let unlockButton:String = {
         return NSLocalizedString("unlock", tableName: filename, bundle: Bundle.main, value: "Unlock", comment: "Text in button on home screen")
     }()
+
+    static let shareToggleButtonTitle: String = {
+        return NSLocalizedString("shareToggleButtonTitle", tableName: filename, bundle: Bundle.main, value: "Share", comment: "Title for the share toolbar button")
+    }()
+
+    static let shareToggleTitle: String = {
+        return NSLocalizedString("shareToggleTitle", tableName: filename, bundle: Bundle.main, value: "Share Uploads", comment: "Alert title when toggling uploads")
+    }()
+
+    static let shareToggleEnableMessage: String = {
+        return NSLocalizedString("shareToggleEnableMessage", tableName: filename, bundle: Bundle.main, value: "Enable uploads to Trio and Dexcom Share?", comment: "Alert message when enabling share uploads")
+    }()
+
+    static let shareToggleDisableMessage: String = {
+        return NSLocalizedString("shareToggleDisableMessage", tableName: filename, bundle: Bundle.main, value: "Disable uploads to Trio and Dexcom Share?", comment: "Alert message when disabling share uploads")
+    }()
+
+    static let shareToggleEnableAction: String = {
+        return NSLocalizedString("shareToggleEnableAction", tableName: filename, bundle: Bundle.main, value: "Enable", comment: "Alert confirm button label when enabling share uploads")
+    }()
+
+    static let shareToggleDisableAction: String = {
+        return NSLocalizedString("shareToggleDisableAction", tableName: filename, bundle: Bundle.main, value: "Disable", comment: "Alert confirm button label when disabling share uploads")
+    }()
+
+    static let shareToggleActiveAccessibility: String = {
+        return NSLocalizedString("shareToggleActiveAccessibility", tableName: filename, bundle: Bundle.main, value: "Share uploads active", comment: "Accessibility label when share uploads are active")
+    }()
+
+    static let shareToggleInactiveAccessibility: String = {
+        return NSLocalizedString("shareToggleInactiveAccessibility", tableName: filename, bundle: Bundle.main, value: "Share uploads inactive", comment: "Accessibility label when share uploads are inactive")
+    }()
+
+    static let shareToggleAccessibilityHint: String = {
+        return NSLocalizedString("shareToggleAccessibilityHint", tableName: filename, bundle: Bundle.main, value: "Double tap to confirm toggling uploads", comment: "Accessibility hint for the share toolbar button")
+    }()
     
     static let screenLockTitle:String = {
         return NSLocalizedString("screenlocktitle", tableName: filename, bundle: Bundle.main, value: "Screen Lock Enabled", comment: "Screen Lock Title")
@@ -235,8 +271,28 @@ enum Texts_HomeView {
         return NSLocalizedString("nightscoutURLMissing", tableName: filename, bundle: Bundle.main, value: "Nightscout URL missing", comment: "nightscout is not enabled")
     }()
     
-    static let libreLinkUpAccountCredentialsMissing: String = {
-        return NSLocalizedString("libreLinkUpAccountCredentialsMissing", tableName: filename, bundle: Bundle.main, value: "Username/password missing", comment: "username and/or password is missing for librelinkup")
+    static let followerAccountCredentialsMissing: String = {
+        return NSLocalizedString("followerAccountCredentialsMissing", tableName: filename, bundle: Bundle.main, value: "Username/password missing", comment: "username and/or password is missing")
     }()
     
+    static let followerAccountCredentialsInvalid: String = {
+        return NSLocalizedString("followerAccountCredentialsInvalid", tableName: filename, bundle: Bundle.main, value: "Invalid User/Password", comment: "username and/or password is invalid")
+    }()
+    
+    static let showHideItemsTitle: String = {
+        return NSLocalizedString("showHideItemsTitle", tableName: filename, bundle: Bundle.main, value: "Quick Show/Hide", comment: "show or hide various interface items")
+    }()
+    
+    static let showTreatments: String = {
+        return NSLocalizedString("showTreatments", tableName: filename, bundle: Bundle.main, value: "Show Treatments", comment: "show the treatments on the chart")
+    }()
+
+    static let warmingUp: String = {
+        return NSLocalizedString("warmingUp", tableName: filename, bundle: Bundle.main, value: "Warming up", comment: "CGM sensor status shared to Trio while the sensor is still warming up")
+    }()
+
+    static let sensorExpired: String = {
+        return NSLocalizedString("sensorExpired", tableName: filename, bundle: Bundle.main, value: "Sensor expired", comment: "CGM sensor status shared to Trio once the sensor has passed its maximum age")
+    }()
+
 }

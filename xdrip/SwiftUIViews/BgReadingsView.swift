@@ -15,8 +15,8 @@ struct BgReadingsView: View {
     /// reference to bgReadingsAccessor
     @EnvironmentObject var bgReadingsAccessor: BgReadingsAccessor
     
-    /// reference to nightscoutUploadManager
-    @EnvironmentObject var nightscoutUploadManager: NightscoutUploadManager
+    /// reference to nightscoutSyncManager
+    @EnvironmentObject var nightscoutSyncManager: NightscoutSyncManager
     
     @Environment(\.presentationMode) var presentationMode: Binding<PresentationMode>
     
@@ -37,6 +37,12 @@ struct BgReadingsView: View {
     // from here: https://stackoverflow.com/questions/61041209/how-to-automatically-collapse-datepicker-in-a-form-when-other-field-is-being-edi
     /// state variable to hide the datePicker when the user has selected a date
     @State private var datePickerReset = UUID()
+    
+    /// selection set for multi-select delete in the List
+    @State private var selectedBgReadings: Set<BgReading> = []
+
+    /// edit mode binding to enable multi-select in the List
+    @Environment(\.editMode) private var editMode
     
     // MARK: - private properties
     
@@ -71,7 +77,7 @@ struct BgReadingsView: View {
                 .padding(.bottom, 0)
                 .id(self.datePickerReset)
                 
-                List {
+                List(selection: $selectedBgReadings) {
                     // only process the view contents if there is data to show.
                     if !filteredBgReadings.isEmpty {
                         ForEach(filteredBgReadings, id: \.self) { bgReading in
@@ -121,6 +127,18 @@ struct BgReadingsView: View {
                     Button(Texts_Common.Cancel, action: {
                         self.presentationMode.wrappedValue.dismiss()
                     })
+                }
+                ToolbarItemGroup(placement: .navigationBarTrailing) {
+                    EditButton()
+
+                    if !selectedBgReadings.isEmpty {
+                        Button(role: .destructive) {
+                            deleteSelectedBgReadings()
+                        } label: {
+                            Label("\(Texts_Common.delete) (\(selectedBgReadings.count))", systemImage: "trash")
+                        }
+                        .accessibilityIdentifier("deleteSelectedBgReadingsButton")
+                    }
                 }
             }
         }
@@ -176,9 +194,45 @@ struct BgReadingsView: View {
         bgReadingsAccessor.delete(bgReading: bgReadingToDelete)
         
         // delete the BgReading from Nightscout (if it exists)
-        nightscoutUploadManager.deleteBgReadingFromNightscout(timeStampOfBgReadingToDelete: timestampOfBgReadingToDelete)
+        nightscoutSyncManager.deleteBgReadingFromNightscout(timeStampOfBgReadingToDelete: timestampOfBgReadingToDelete)
         
         return
+    }
+    
+    /// deletes all currently selected BG readings from the filtered list, the main list, Core Data, and Nightscout
+    private func deleteSelectedBgReadings() {
+        let notificationFeedback = UINotificationFeedbackGenerator()
+        
+        notificationFeedback.prepare()
+        
+        // make a stable copy to avoid mutating the data set while iterating
+        let bgReadingsToDelete = Array(selectedBgReadings)
+
+        for bgReadingToDelete in bgReadingsToDelete {
+            let timestampOfBgReadingToDelete = bgReadingToDelete.timeStamp
+
+            trace("multi-delete BG reading %{public}@ %{public}@ with timestamp %{public}@ from coredata", log: log, category: ConstantsLog.categoryBgReadingsView, type: .info, bgReadingToDelete.calculatedValue.mgDlToMmol(mgDl: isMgDl).bgValueRounded(mgDl: isMgDl).stringWithoutTrailingZeroes, String(isMgDl ? Texts_Common.mgdl : Texts_Common.mmol), timestampOfBgReadingToDelete.description)
+
+            // remove from filtered array (if present)
+            if let indexInFiltered = filteredBgReadings.firstIndex(where: { $0.timeStamp == timestampOfBgReadingToDelete }) {
+                filteredBgReadings.remove(at: indexInFiltered)
+            }
+
+            // remove from main array
+            bgReadings.removeAll(where: { $0.timeStamp == timestampOfBgReadingToDelete })
+
+            // delete from Core Data
+            bgReadingsAccessor.delete(bgReading: bgReadingToDelete)
+
+            // delete from Nightscout
+            nightscoutSyncManager.deleteBgReadingFromNightscout(timeStampOfBgReadingToDelete: timestampOfBgReadingToDelete)
+        }
+        
+        notificationFeedback.notificationOccurred(.success)
+
+        // clear selection and exit edit mode
+        selectedBgReadings.removeAll()
+        editMode?.wrappedValue = .inactive
     }
     
     /// returns the visual indicator symbol based on the BgRangeDescription from a BgReading

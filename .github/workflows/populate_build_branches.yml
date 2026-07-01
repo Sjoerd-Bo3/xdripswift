@@ -1,0 +1,107 @@
+name: 5. Populate Xcode Cloud build branches
+run-name: Populate build branches from ${{ github.event.inputs.source_ref || github.ref_name }}
+
+# When you push your working branch, this mirrors it into three branches —
+# build/normal, build/left, build/right — each carrying its own committed
+# variant config (bundle id + app name) in xdrip/xDripOverride.xcconfig.
+#
+# Point one Xcode Cloud workflow at each build/* branch (Start Conditions ▸
+# Branch Changes). Pushing your source branch then auto-rebuilds all three with
+# no per-workflow environment variables to maintain — the branch carries its own
+# identity. App groups are left untouched, so all three share one Loop/Trio
+# container (the "shared app group" setup).
+
+on:
+  push:
+    branches:
+      - develop
+      # Add/remove your working branch(es) here:
+      - feat/trio-cgm-status-sharing
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: "Branch or commit SHA to build the variants from (defaults to the branch this is run on)"
+        required: false
+        default: ""
+
+# Don't let two populate runs race each other onto the same build/* refs.
+concurrency:
+  group: populate-build-branches
+  cancel-in-progress: false
+
+jobs:
+  populate:
+    name: Mirror -> build/${{ matrix.variant }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: normal
+            suffix: ""
+            app_name: ""
+          - variant: left
+            suffix: ".left"
+            app_name: "xDrip L"
+          - variant: right
+            suffix: ".right"
+            app_name: "xDrip R"
+
+    steps:
+      - name: Resolve source ref
+        id: src
+        run: |
+          REF="${{ github.event.inputs.source_ref }}"
+          if [ -z "$REF" ]; then REF="${{ github.ref_name }}"; fi
+          echo "ref=$REF" >> "$GITHUB_OUTPUT"
+          echo "Building variants from: $REF"
+
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.src.outputs.ref }}
+          fetch-depth: 0
+          # GH_PAT (already used by the browser build) so the push can carry
+          # workflow files and so Xcode Cloud's webhook fires on the new commit.
+          token: ${{ secrets.GH_PAT }}
+          persist-credentials: true
+
+      - name: Write variant override (xdrip/xDripOverride.xcconfig)
+        env:
+          # Reuses the existing browser-build secret for your Apple Team ID.
+          TEAM: ${{ secrets.TEAMID }}
+          SUFFIX: ${{ matrix.suffix }}
+          APP_NAME: ${{ matrix.app_name }}
+        run: |
+          set -e
+          FILE="xdrip/xDripOverride.xcconfig"
+          SHORT_SHA="$(git rev-parse --short HEAD)"
+          {
+            echo "// Auto-generated for the '${{ matrix.variant }}' Xcode Cloud build branch — do not edit by hand."
+            echo "// Source: ${{ steps.src.outputs.ref }} @ ${SHORT_SHA}"
+            if [ -n "$TEAM" ]; then
+              echo "XDRIP_DEVELOPMENT_TEAM = ${TEAM}"
+              echo "DEVELOPMENT_TEAM = ${TEAM}"
+            fi
+            if [ -n "$SUFFIX" ]; then
+              # Keep the com.<TEAM>.xdripswift prefix; append the variant suffix.
+              echo "MAIN_APP_BUNDLE_IDENTIFIER = com.\$(DEVELOPMENT_TEAM).xdripswift${SUFFIX}"
+            fi
+            if [ -n "$APP_NAME" ]; then
+              echo "MAIN_APP_DISPLAY_NAME = ${APP_NAME}"
+            fi
+          } > "$FILE"
+          echo "----- ${FILE} -----"
+          cat "$FILE"
+
+      - name: Commit and force-push build/${{ matrix.variant }}
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add xdrip/xDripOverride.xcconfig
+          git commit -m "build(${{ matrix.variant }}): variant config from ${{ steps.src.outputs.ref }}"
+          git push -f origin HEAD:refs/heads/build/${{ matrix.variant }}
+          echo "Pushed build/${{ matrix.variant }}" >> "$GITHUB_STEP_SUMMARY"

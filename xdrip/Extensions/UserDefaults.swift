@@ -25,13 +25,13 @@ extension UserDefaults {
         
         /// should the online help by automatically translated?
         case translateOnlineHelp = "translateOnlineHelp"
-        /// should the main screen help icon be shown?
-        case showHelpIcon = "showHelpIcon"
         
         // Data Source
         
         /// is master mode selected?
         case isMaster = "isMaster"
+        /// should master data be uploaded to Nightscout?
+        case masterUploadDataToNightscout = "masterUploadDataToNightscout"
         /// which follower mode is selected?
         case followerDataSourceType = "followerDataSourceType"
         /// should follower data (if not from Nightscout) be uploaded to Nightscout?
@@ -58,6 +58,8 @@ extension UserDefaults {
         case libreLinkUpVersion = "libreLinkUpVersion"
         /// LibreLinkUp terms need to be re-accepted
         case libreLinkUpReAcceptNeeded = "libreLinkUpReAcceptNeeded"
+        ///LibreLinkUp is a 15 day "Plus" sensor being used?
+        case libreLinkUpIs15DaySensor = "libreLinkUpIs15DaySensor"
         
         // General
         
@@ -86,6 +88,8 @@ extension UserDefaults {
         case showClockWhenScreenIsLocked = "showClockWhenScreenIsLocked"
         /// how (and if) the screen should be dimmed when screen lock is enabled
         case screenLockDimmingType = "screenLockDimmingType"
+        /// should the main chart y-axis be automatically rescaled back down to current chart values and the end date reset when necessary?
+        case allowMainChartAutoReset = "allowMainChartAutoReset"
         /// show the objective lines in color or grey?
         case urgentHighMarkValue = "urgentHighMarkValue"
         /// high value
@@ -105,20 +109,22 @@ extension UserDefaults {
         
         /// should the treatments be shown on the main chart?
         case showTreatmentsOnChart = "showTreatmentsOnChart"
+        /// should the treatments be shown on the landscape chart?
+        case showTreatmentsOnLandscapeChart = "showTreatmentsOnLandscapeChart"
         /// micro-bolus threshold level in units
         case smallBolusTreatmentThreshold = "smallBolusTreatmentThreshold"
-        /// should the micro-boluses be shown on the main chart?
-        case showSmallBolusTreatmentsOnChart = "showSmallBolusTreatmentsOnChart"
         /// should the micro-boluses be listed in the treatment list/table?
         case showSmallBolusTreatmentsInList = "showSmallBolusTreatmentsInList"
         /// should the normal boluses be listed in the treatment list/table?
         case showBolusTreatmentsInList = "showBolusTreatmentsInList"
         /// should the carbs be listed in the treatment list/table?
         case showCarbsTreatmentsInList = "showCarbsTreatmentsInList"
+        /// should the basal rates be listed in the treatment list/table?
+        case showBasalTreatmentsInList = "showBasalTreatmentsInList"
         /// should the BG Checks be listed in the treatment list/table?
         case showBgCheckTreatmentsInList = "showBgCheckTreatmentsInList"
-        /// should the carbs be offset in the main chart?
-        case offsetCarbTreatmentsOnChart = "offsetCarbTreatmentsOnChart"
+        /// override the default canula age value (CAGE = time since site change)?
+        case CAGEMaxHours = "CAGEMaxHours"
         
         // Statistics settings
         
@@ -130,6 +136,8 @@ extension UserDefaults {
         case useIFCCA1C = "useIFCCA1C"
         /// which type of TIR calculation is selected?
         case timeInRangeType = "timeInRangeType"
+        /// should the TIR chart use a dynamic Y axis? If not, then it will be fixed from 0-100%
+        case tirChartHasDynamicYAxis = "tirChartHasDynamicYAxis"
         /// no longer used, but will leave it here to prevent compiler coredata warnings
         case useStandardStatisticsRange = "useStandardStatisticsRange"
         /// use the newer TITR of 70-140mg/dL to calculate the statistics? If false, we will use the conventional TIR of 70-180mg/dL
@@ -161,6 +169,8 @@ extension UserDefaults {
         case activeSensorStartDate = "activeSensorStartDate"
         /// active sensor max days (lifetime)
         case activeSensorMaxSensorAgeInDays = "activeSensorMaxSensorAgeInDays"
+        /// overriden active sensor max days (lifetime) - only used for G6 Anubis transmitters
+        case activeSensorMaxSensorAgeInDaysOverridenAnubis = "activeSensorMaxSensorAgeInDaysOverridenAnubis"
         
         
         // Transmitter
@@ -172,6 +182,10 @@ extension UserDefaults {
         
         /// should readings be uploaded to nightscout
         case nightscoutEnabled = "nightscoutEnabled"
+        /// should we try and follow any specific AID system (Loop, Trio, AAPS, OpenAPS etc)?
+        case nightscoutFollowType = "nightscoutFollowType"
+        /// should the app show the extended AID follow information?
+        case nightscoutFollowShowExpandedInfo = "nightscoutFollowShowExpandedInfo"
         /// should schedule be used for nightscout upload ?
         case nightscoutUseSchedule = "nightscoutUseSchedule"
         /// - schedule for nightscout use, only applicable if nightscoutUseSchedule = true
@@ -190,13 +204,22 @@ extension UserDefaults {
         
         /// is a  nightscout sync of treatments required
         ///
-        /// will be set to true in viewcontroller when a treatment is created, modified or deleted. The value will be observed by NightscoutUploadManager and when set to true, the manager knows a new sync is required
-        case nightscoutSyncTreatmentsRequired = "nightscoutSyncTreatmentsRequired"
+        /// will be set to true in viewcontroller when a treatment is created, modified or deleted. The value will be observed by NightscoutSyncManager and when set to true, the manager knows a new sync is required
+        case nightscoutSyncRequired = "nightscoutSyncRequired"
 
         /// used to trigger view controllers that there's a change in TreatmentEntries
         ///
         /// value will be increased with 1 each time there's an update
         case nightscoutTreatmentsUpdateCounter = "nightscoutTreatmentsUpdateCounter"
+        
+        /// Nightscout profile stored as a JSON data object
+        case nightscoutProfile = "nightscoutProfile"
+        
+        /// Nightscout deviceStatus stored as a JSON data object
+        case nightscoutDeviceStatus = "nightscoutDeviceStatus"
+        
+        /// Nightscout deviceStatus update flag
+        case nightscoutDeviceStatusWasUpdated = "nightscoutDeviceStatusWasUpdated"
         
         // Dexcom Share
         
@@ -209,17 +232,23 @@ extension UserDefaults {
         /// use US dexcomshare url true or false
         case useUSDexcomShareurl = "useUSDexcomShareurl"
         /// dexcom share serial number
-        case dexcomShareSerialNumber = "dexcomShareSerialNumber"
+        case dexcomShareUploadSerialNumber = "dexcomShareUploadSerialNumber"
         /// should schedule be used for dexcom share upload ?
-        case dexcomShareUseSchedule = "dexcomShareUseSchedule"
-        /// - schedule for dexcomShare use, only applicable if dexcomShareUseSchedule = true
+        case dexcomShareUploadUseSchedule = "dexcomShareUploadUseSchedule"
+        /// - schedule for dexcomShare upload use, only applicable if dexcomShareUploadUseSchedule = true
         /// - string of values, seperate by '-', values are int values and represent minutes
-        case dexcomShareSchedule = "dexcomShareSchedule"
+        case dexcomShareUploadSchedule = "dexcomShareUploadSchedule"
 
         // Healthkit
         
         /// should readings be stored in healthkit, true or false
         case storeReadingsInHealthkit = "storeReadingsInHealthkit"
+        
+        /// did user authorize the storage of readings in healthkit or not
+        case storeReadingsInHealthkitAuthorized = "storeReadingsInHealthkitAuthorized"
+        
+        /// timestamp of last bgreading that was stored in healthkit
+        case timeStampLatestHealthKitStoreBgReading = "timeStampLatestHealthKitStoreBgReading"
         
         // Speak readings
         
@@ -320,7 +349,7 @@ extension UserDefaults {
         /// timestamp lastest reading uploaded to Nightscout
         case timeStampLatestNSUploadedBgReadingToNightscout = "timeStampLatestUploadedBgReading"
         /// timestamp lastest treatment sync request to Nightscout
-        case timeStampLatestNightscoutTreatmentSyncRequest = "timeStampLatestNightscoutTreatmentSyncRequest"
+        case timeStampLatestNightscoutSyncRequest = "timeStampLatestNightscoutSyncRequest"
         /// timestamp latest calibration uploaded to Nightscout
         case timeStampLatestNSUploadedCalibrationToNightscout = "timeStampLatestUploadedCalibration"
         
@@ -329,13 +358,6 @@ extension UserDefaults {
         case transmitterBatteryInfo = "transmitterbatteryinfo"
         /// timestamp last battery reading (will only be used for dexcom G5 where we need to explicitly ask for the battery)
         case timeStampOfLastBatteryReading = "timeStampOfLastBatteryReading"
-        
-        // HealthKit
-        /// did user authorize the storage of readings in healthkit or not
-        case storeReadingsInHealthkitAuthorized = "storeReadingsInHealthkitAuthorized"
-        
-        /// timestamp of last bgreading that was stored in healthkit
-        case timeStampLatestHealthKitStoreBgReading = "timeStampLatestHealthKitStoreBgReading"
         
         // Dexcom Share
         /// timestamp of latest reading uploaded to Dexcom Share
@@ -350,6 +372,9 @@ extension UserDefaults {
         
         /// Loop/OS-AID sharing will be limited to just once every 5 minutes if true
         case shareToLoopOnceEvery5Minutes = "shareToLoopOnceEvery5Minutes"
+
+        /// when sharing to Trio, also write the "rich" CGM status/lifecycle payload (sensor warm-up, % complete, expiry). Opt-in, default false, only applies to the Trio app group.
+        case shareExtendedCgmStatusToTrio = "shareExtendedCgmStatusToTrio"
         
 
         // Trace
@@ -385,12 +410,17 @@ extension UserDefaults {
         case OSLogEnabled = "OSLogEnabled"
         /// case smooth libre values
         case smoothLibreValues = "smoothLibreValues"
+        /// timestamp of when smoothLibreValues was enabled or disabled by the user
+        case smoothLibreValuesChangedAtTimeStamp = "smoothLibreValuesChangedAtTimeStamp"
         /// for Libre 2 : suppress sending unlockPayLoad, this will allow to run xDrip4iOS/Libre 2 in parallel with other app(s)
         case suppressUnLockPayLoad = "suppressUnLockPayLoad"
         /// should the BG values be written to a shared app group?
         case loopShareType = "loopShareType"
+        /// did user authorize the storage of "frequent" writes to Nightscout or not (i.e. every 60 seconds instead of every 5 minutes)
+        case storeFrequentReadingsInNightscout = "storeFrequentReadingsInNightscout"
+        /// did user authorize the storage of "frequent" readings in healthkit or not (i.e. every 60 seconds instead of every 5 minutes)
+        case storeFrequentReadingsInHealthKit = "storeFrequentReadingsInHealthKit"
         /// to create artificial delay in readings stored in sharedUserDefaults for loop. Minutes - so that Loop receives more smoothed values.
-        ///
         /// Default value 0, if used then recommended value is multiple of 5 (eg 5 ot 10)
         case loopDelaySchedule = "loopDelaySchedule"
         case loopDelayValueInMinutes = "loopDelayValueInMinutes"
@@ -434,6 +464,9 @@ extension UserDefaults {
         
         /// should the app allow a high contrast mode for the .systemSmall widget when shown in StandBy mode at night?
         case allowStandByHighContrast = "allowStandByHighContrast"
+        
+        /// force StandBy mode to show a big number version of the widget
+        case forceStandByBigNumbers = "forceStandByBigNumbers"
     }
     
     
@@ -452,17 +485,6 @@ extension UserDefaults {
         }
     }
     
-    /// should the app show the help icon on the main screen toolbar?
-    @objc dynamic var showHelpIcon: Bool {
-        // default value for bool in userdefaults is false, by default we want the app to show the help icon in the toolbar
-        get {
-            return !bool(forKey: Key.showHelpIcon.rawValue)
-        }
-        set {
-            set(!newValue, forKey: Key.showHelpIcon.rawValue)
-        }
-    }
-    
     // MARK: Data Source
     
     /// true if device is master, false if follower
@@ -473,6 +495,17 @@ extension UserDefaults {
         }
         set {
             set(!newValue, forKey: Key.isMaster.rawValue)
+        }
+    }
+    
+    /// should the master CGM data be uploaded to Nightscout?
+    @objc dynamic var masterUploadDataToNightscout: Bool {
+        // default value for bool in userdefaults is false
+        get {
+            return !bool(forKey: Key.masterUploadDataToNightscout.rawValue)
+        }
+        set {
+            set(!newValue, forKey: Key.masterUploadDataToNightscout.rawValue)
         }
     }
     
@@ -591,6 +624,16 @@ extension UserDefaults {
         }
         set {
             set(newValue, forKey: Key.libreLinkUpReAcceptNeeded.rawValue)
+        }
+    }
+    
+    /// has the user marked their Libre sensor as the Plus version with a 15 day lifetime?
+    @objc dynamic var libreLinkUpIs15DaySensor: Bool {
+        get {
+            return bool(forKey: Key.libreLinkUpIs15DaySensor.rawValue)
+        }
+        set {
+            set(newValue, forKey: Key.libreLinkUpIs15DaySensor.rawValue)
         }
     }
     
@@ -1027,6 +1070,17 @@ extension UserDefaults {
         }
     }
     
+    /// should the main chart y-axis be automatically rescaled back down to current chart values and the end date reset when necessary?
+    @objc dynamic var allowMainChartAutoReset: Bool {
+        // default value for bool in userdefaults is false, as default we want the chart to automatically rescale
+        get {
+            return !bool(forKey: Key.allowMainChartAutoReset.rawValue)
+        }
+        set {
+            set(!newValue, forKey: Key.allowMainChartAutoReset.rawValue)
+        }
+    }
+    
     
     // MARK: Treatments Settings
     
@@ -1041,43 +1095,15 @@ extension UserDefaults {
         }
     }
     
-    /// micro-bolus threshold level in units as a Double
-    @objc dynamic var smallBolusTreatmentThreshold:Double {
+    /// should the app show the treatments on the landscape chart?
+    @objc dynamic var showTreatmentsOnLandscapeChart: Bool {
+        // default value for bool in userdefaults is false, as default we want the app to hide the treatments
+        // on the landscape chart even if they are shown on the main screen/chart
         get {
-
-            var returnValue = double(forKey: Key.smallBolusTreatmentThreshold.rawValue)
-            // if 0 set to defaultvalue
-            if returnValue == 0.0 {
-                returnValue = ConstantsGlucoseChart.defaultSmallBolusTreamentThreshold
-            }
-
-            return returnValue
+            return bool(forKey: Key.showTreatmentsOnLandscapeChart.rawValue)
         }
         set {
-
-            set(newValue, forKey: Key.smallBolusTreatmentThreshold.rawValue)
-        }
-    }
-    
-    /// should the app show the micro-bolus treatments on the main chart?
-    @objc dynamic var showSmallBolusTreatmentsOnChart: Bool {
-        // default value for bool in userdefaults is false, by default we want the app to *show* the micro-bolus treatments on the chart
-        get {
-            return !bool(forKey: Key.showSmallBolusTreatmentsOnChart.rawValue)
-        }
-        set {
-            set(!newValue, forKey: Key.showSmallBolusTreatmentsOnChart.rawValue)
-        }
-    }
-    
-    /// should the app show carb treatments with an offset?
-    @objc dynamic var offsetCarbTreatmentsOnChart: Bool {
-        // default value for bool in userdefaults is false, by default we want the app to *not* offset the carb treatments on the chart
-        get {
-            return bool(forKey: Key.offsetCarbTreatmentsOnChart.rawValue)
-        }
-        set {
-            set(newValue, forKey: Key.offsetCarbTreatmentsOnChart.rawValue)
+            set(newValue, forKey: Key.showTreatmentsOnLandscapeChart.rawValue)
         }
     }
     
@@ -1114,6 +1140,17 @@ extension UserDefaults {
         }
     }
     
+    /// should the app show the basal rate treatments in the treatments list/table?
+    @objc dynamic var showBasalTreatmentsInList: Bool {
+        // default value for bool in userdefaults is true, by default we want the app to *hide* the basal treatments in the treatments table
+        get {
+            return bool(forKey: Key.showBasalTreatmentsInList.rawValue)
+        }
+        set {
+            set(newValue, forKey: Key.showBasalTreatmentsInList.rawValue)
+        }
+    }
+    
     /// should the app show the BG Check treatments in the treatments list/table?
     @objc dynamic var showBgCheckTreatmentsInList: Bool {
         // default value for bool in userdefaults is false, by default we want the app to *show* the BG Check treatments in the treatments table
@@ -1122,6 +1159,41 @@ extension UserDefaults {
         }
         set {
             set(!newValue, forKey: Key.showBgCheckTreatmentsInList.rawValue)
+        }
+    }
+    
+    /// micro-bolus threshold level in units as a Double
+    @objc dynamic var smallBolusTreatmentThreshold:Double {
+        get {
+
+            var returnValue = double(forKey: Key.smallBolusTreatmentThreshold.rawValue)
+            // if 0 set to defaultvalue
+            if returnValue == 0.0 {
+                returnValue = ConstantsGlucoseChart.defaultSmallBolusTreatmentThreshold
+            }
+
+            return returnValue
+        }
+        set {
+
+            set(newValue, forKey: Key.smallBolusTreatmentThreshold.rawValue)
+        }
+    }
+    
+    /// max canula age (CAGE) as Int - if nil, return default value
+    @objc dynamic var CAGEMaxHours: Int {
+        get {
+            var returnValue = integer(forKey: Key.CAGEMaxHours.rawValue)
+            // if 0 set to defaultvalue
+            if returnValue == 0 {
+                returnValue = ConstantsHomeView.CAGEDefaultMaxHours
+            }
+
+            return returnValue
+        }
+        
+        set {
+            set(newValue, forKey: Key.CAGEMaxHours.rawValue)
         }
     }
     
@@ -1182,6 +1254,17 @@ extension UserDefaults {
         }
         set {
             set(newValue.rawValue, forKey: Key.timeInRangeType.rawValue)
+        }
+    }
+    
+    /// should the TIR chart use a dynamic Y axis? If not, then it will be fixed from 0-100%
+    @objc dynamic var tirChartHasDynamicYAxis: Bool {
+        // default value for bool in userdefaults is false, by default we want the the dynamic y-axis to be fixed (false)
+        get {
+            return bool(forKey: Key.tirChartHasDynamicYAxis.rawValue)
+        }
+        set {
+            set(newValue, forKey: Key.tirChartHasDynamicYAxis.rawValue)
         }
     }
     
@@ -1261,6 +1344,16 @@ extension UserDefaults {
         }
     }
     
+    /// overriden active sensor max sensor days. Optional as should be set to nil if the user isn't using a G6 and hasn't overriden manually the max days
+    var activeSensorMaxSensorAgeInDaysOverridenAnubis: Double? {
+        get {
+            return double(forKey: Key.activeSensorMaxSensorAgeInDaysOverridenAnubis.rawValue)
+        }
+        set {
+            set(newValue, forKey: Key.activeSensorMaxSensorAgeInDaysOverridenAnubis.rawValue)
+        }
+    }
+    
 
     // MARK: Housekeeper Settings
 
@@ -1320,6 +1413,29 @@ extension UserDefaults {
         }
         set {
             set(newValue, forKey: Key.nightscoutEnabled.rawValue)
+        }
+    }
+    
+    /// holds the enum integer of the type of nightscout follower type to be shown, if any
+    /// default to 0 (basic type - just standard treatments and basal from NS)
+    var nightscoutFollowType: NightscoutFollowType {
+        get {
+            let nightscoutFollowTypeAsInt = integer(forKey: Key.nightscoutFollowType.rawValue)
+            return NightscoutFollowType(rawValue: nightscoutFollowTypeAsInt) ?? .none
+        }
+        set {
+            set(newValue.rawValue, forKey: Key.nightscoutFollowType.rawValue)
+        }
+    }
+    
+    /// show the expanded information views for AID follow
+    @objc dynamic var nightscoutFollowShowExpandedInfo: Bool {
+        // default value for bool in userdefaults is false, as default we want the app to show the expanded information
+        get {
+            return !bool(forKey: Key.nightscoutFollowShowExpandedInfo.rawValue)
+        }
+        set {
+            set(!newValue, forKey: Key.nightscoutFollowShowExpandedInfo.rawValue)
         }
     }
     
@@ -1399,23 +1515,23 @@ extension UserDefaults {
     
     /// is a  nightscout sync of treatments required
     ///
-    /// will be set to true in viewcontroller when a treatment is created, modified or deleted. The value will be observed by NightscoutUploadManager and when set to true, the manager knows a new sync is required
-    @objc dynamic var nightscoutSyncTreatmentsRequired: Bool {
+    /// will be set to true in viewcontroller when a treatment is created, modified or deleted. The value will be observed by NightscoutSyncManager and when set to true, the manager knows a new sync is required
+    @objc dynamic var nightscoutSyncRequired: Bool {
         get {
-            return bool(forKey: Key.nightscoutSyncTreatmentsRequired.rawValue)
+            return bool(forKey: Key.nightscoutSyncRequired.rawValue)
         }
         set {
-            set(newValue, forKey: Key.nightscoutSyncTreatmentsRequired.rawValue)
+            set(newValue, forKey: Key.nightscoutSyncRequired.rawValue)
         }
     }
     
     /// timestamp lastest reading uploaded to Nightscout
-    var timeStampLatestNightscoutTreatmentSyncRequest: Date? {
+    var timeStampLatestNightscoutSyncRequest: Date? {
         get {
-            return object(forKey: Key.timeStampLatestNightscoutTreatmentSyncRequest.rawValue) as? Date
+            return object(forKey: Key.timeStampLatestNightscoutSyncRequest.rawValue) as? Date
         }
         set {
-            set(newValue, forKey: Key.timeStampLatestNightscoutTreatmentSyncRequest.rawValue)
+            set(newValue, forKey: Key.timeStampLatestNightscoutSyncRequest.rawValue)
         }
     }
     
@@ -1428,6 +1544,44 @@ extension UserDefaults {
         }
         set {
             set(newValue, forKey: Key.nightscoutTreatmentsUpdateCounter.rawValue)
+        }
+    }
+    
+    /// Nightscout profile stored as a JSON data object
+    var nightscoutProfile: Data? {
+        get {
+            if let data = object(forKey: Key.nightscoutProfile.rawValue) as? Data {
+                return data
+            } else {
+                return nil
+            }
+        }
+        set {
+            set(newValue, forKey: Key.nightscoutProfile.rawValue)
+        }
+    }
+    
+    /// Nightscout device status stored as a JSON data object
+    @objc dynamic var nightscoutDeviceStatus: Data? {
+        get {
+            if let data = object(forKey: Key.nightscoutDeviceStatus.rawValue) as? Data {
+                return data
+            } else {
+                return nil
+            }
+        }
+        set {
+            set(newValue, forKey: Key.nightscoutDeviceStatus.rawValue)
+        }
+    }
+    
+    /// will be set to true when the nightscout device status has been updated fully
+    @objc dynamic var nightscoutDeviceStatusWasUpdated: Bool {
+        get {
+            return bool(forKey: Key.nightscoutSyncRequired.rawValue)
+        }
+        set {
+            set(newValue, forKey: Key.nightscoutSyncRequired.rawValue)
         }
     }
 
@@ -1474,33 +1628,33 @@ extension UserDefaults {
     }
 
     /// dexcom share serial number
-    @objc dynamic var dexcomShareSerialNumber:String? {
+    @objc dynamic var dexcomShareUploadSerialNumber:String? {
         get {
-            return string(forKey: Key.dexcomShareSerialNumber.rawValue)
+            return string(forKey: Key.dexcomShareUploadSerialNumber.rawValue)
         }
         set {
-            set(newValue, forKey: Key.dexcomShareSerialNumber.rawValue)
+            set(newValue, forKey: Key.dexcomShareUploadSerialNumber.rawValue)
         }
     }
     
-    /// - schedule for dexcomShare use, only applicable if dexcomShareUseSchedule = true
+    /// - schedule for dexcomShare use, only applicable if dexcomShareUploadUseSchedule = true
     /// - string of values, seperate by '-', values are int values and represent minutes
-    var dexcomShareSchedule: String? {
+    var dexcomShareUploadSchedule: String? {
         get {
-            return string(forKey: Key.dexcomShareSchedule.rawValue)
+            return string(forKey: Key.dexcomShareUploadSchedule.rawValue)
         }
         set {
-            set(newValue, forKey: Key.dexcomShareSchedule.rawValue)
+            set(newValue, forKey: Key.dexcomShareUploadSchedule.rawValue)
         }
     }
     
     /// use schedule for dexcomShareupload ?
-    @objc dynamic var dexcomShareUseSchedule: Bool {
+    @objc dynamic var dexcomShareUploadUseSchedule: Bool {
         get {
-            return bool(forKey: Key.dexcomShareUseSchedule.rawValue)
+            return bool(forKey: Key.dexcomShareUploadUseSchedule.rawValue)
         }
         set {
-            set(newValue, forKey: Key.dexcomShareUseSchedule.rawValue)
+            set(newValue, forKey: Key.dexcomShareUploadUseSchedule.rawValue)
         }
     }
 
@@ -2033,6 +2187,17 @@ extension UserDefaults {
         }
     }
     
+    /// timestamp of when smoothLibreValues was enabled or disabled by the user
+    /// used to help calculate/inform about the transmitter Read Success
+    @objc dynamic var smoothLibreValuesChangedAtTimeStamp: Date? {
+        get {
+            return object(forKey: Key.smoothLibreValuesChangedAtTimeStamp.rawValue) as? Date
+        }
+        set {
+            set(newValue, forKey: Key.smoothLibreValuesChangedAtTimeStamp.rawValue)
+        }
+    }
+    
     /// to create artificial delay in readings stored in sharedUserDefaults for loop. Minutes - so that Loop receives more smoothed values.
     ///
     /// Default value 0, if used then recommended value is multiple of 5 (eg 5 ot 10)
@@ -2063,6 +2228,16 @@ extension UserDefaults {
         }
         set {
             set(newValue, forKey: Key.shareToLoopOnceEvery5Minutes.rawValue)
+        }
+    }
+
+    /// when sharing to Trio, also write the rich CGM status/lifecycle payload (sensor warm-up, % complete, expiry) that Trio's AppGroupSource understands. Opt-in, default false. Has no effect on Loop / stock Trio because it is only written to the Trio app group when enabled.
+    var shareExtendedCgmStatusToTrio: Bool {
+        get {
+            return bool(forKey: Key.shareExtendedCgmStatusToTrio.rawValue)
+        }
+        set {
+            set(newValue, forKey: Key.shareExtendedCgmStatusToTrio.rawValue)
         }
     }
     
@@ -2117,6 +2292,41 @@ extension UserDefaults {
         }
         set {
             set(!newValue, forKey: Key.allowStandByHighContrast.rawValue)
+        }
+    }
+    
+    /// force StandBy mode to show a big number version of the widget
+    var forceStandByBigNumbers: Bool {
+        // default value for bool in userdefaults is false, as default we want the app to not show big numbers
+        get {
+            return bool(forKey: Key.forceStandByBigNumbers.rawValue)
+        }
+        set {
+            set(newValue, forKey: Key.forceStandByBigNumbers.rawValue)
+        }
+    }
+    
+    /// should readings be stored much more frequentyly in Nightscout ? true or false
+    ///
+    /// Only really useful for master with Libre 2 Direct connection (60 second readings). Default is false/disabled.
+    @objc dynamic var storeFrequentReadingsInNightscout: Bool {
+        get {
+            return bool(forKey: Key.storeFrequentReadingsInNightscout.rawValue)
+        }
+        set {
+            set(newValue, forKey: Key.storeFrequentReadingsInNightscout.rawValue)
+        }
+    }
+    
+    /// should readings be stored much more frequentyly in healthkit ? true or false
+    ///
+    /// Only really useful for master with Libre 2 Direct connection (60 second readings). Default is false/disabled.
+    @objc dynamic var storeFrequentReadingsInHealthKit: Bool {
+        get {
+            return bool(forKey: Key.storeFrequentReadingsInHealthKit.rawValue)
+        }
+        set {
+            set(newValue, forKey: Key.storeFrequentReadingsInHealthKit.rawValue)
         }
     }
     

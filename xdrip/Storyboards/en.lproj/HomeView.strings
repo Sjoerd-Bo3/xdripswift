@@ -48,4 +48,14 @@
 "hidingUrlForXSeconds" = "Hiding URL for %@s...";
 "nightscoutNotEnabled" = "Nightscout is disabled";
 "nightscoutURLMissing" = "Nightscout URL missing";
-"libreLinkUpAccountCredentialsMissing" = "Username/password missing";
+"followerAccountCredentialsMissing" = "Username/password missing";
+
+"shareToggleButtonTitle" = "Share";
+"shareToggleTitle" = "Share Uploads";
+"shareToggleEnableMessage" = "Enable uploads to Trio and Dexcom Share?";
+"shareToggleDisableMessage" = "Disable uploads to Trio and Dexcom Share?";
+"shareToggleEnableAction" = "Enable";
+"shareToggleDisableAction" = "Disable";
+"shareToggleActiveAccessibility" = "Share uploads active";
+"shareToggleInactiveAccessibility" = "Share uploads inactive";
+"shareToggleAccessibilityHint" = "Double tap to confirm toggling uploads";

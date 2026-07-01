@@ -104,6 +104,10 @@ class Texts_BluetoothPeripheralView {
         return NSLocalizedString("transmittterStartDate", tableName: filename, bundle: Bundle.main, value: "Transmitter Started", comment: "cell text, transmitter start time")
     }()
     
+    static let transmittterExpiryDate: String = {
+        return NSLocalizedString("transmittterExpiryDate", tableName: filename, bundle: Bundle.main, value: "Transmitter Expires", comment: "cell text, transmitter expiry date")
+    }()
+    
     static let sensorStartDate: String = {
         return NSLocalizedString("sensorStartDate", tableName: filename, bundle: Bundle.main, value: "Sensor Started", comment: "cell text, sensor start time")
     }()
@@ -133,7 +137,15 @@ class Texts_BluetoothPeripheralView {
     }()
     
     static let useOtherDexcomApp: String = {
-        return NSLocalizedString("useOtherDexcomApp", tableName: filename, bundle: Bundle.main, value: "Read from Dexcom app", comment: "Dexcom bluetooth screen. Is another app used in parallel or not")
+        return NSLocalizedString("useOtherDexcomApp", tableName: filename, bundle: Bundle.main, value: "Use With Other App", comment: "Dexcom bluetooth screen. Is another app used in parallel or not")
+    }()
+    
+    static let useOtherDexcomAppMessageEnabled: String = {
+        return String(format: NSLocalizedString("useOtherDexcomAppMessageEnabled", tableName: filename, bundle: Bundle.main, value: "Enabling this option will allow another app (such as Dexcom G6 or CamAPS apps) to run at the same time and connect to the G6 transmitter.\r\n\nThe other app will be responsible for providing authentication to the transmitter and must ALWAYS be running in the background or %@ will not get any readings.", comment: "Dexcom bluetooth screen. Message to explain that another app must be running to handle the authentication with the transmitter."), ConstantsHomeView.applicationName)
+    }()
+    
+    static let useOtherDexcomAppMessageDisabled: String = {
+        return String(format: NSLocalizedString("useOtherDexcomAppMessageDisabled", tableName: filename, bundle: Bundle.main, value: "Disabling this option means that %@ must be the only app connecting and authenticating with the G6 transmitter.\r\n\nIf any other app is also left open and connected, then it is likely that either %@ or the other app will not get readings.", comment: "Dexcom bluetooth screen. Message to explain that this app is the only one running to handle the authentication with the transmitter"), ConstantsHomeView.applicationName, ConstantsHomeView.applicationName)
     }()
     
     static let nfcScanNeeded: String = {
@@ -176,4 +188,19 @@ class Texts_BluetoothPeripheralView {
         return NSLocalizedString("confirm", tableName: filename, bundle: Bundle.main, value: "Confirm", comment: "button text, confirm")
     }()
     
+    static let maxSensorAgeInDaysOverridenAnubis: String = {
+        return NSLocalizedString("maxSensorAgeInDaysOverridenAnubis", tableName: filename, bundle: Bundle.main, value: "Maximum Sensor Days", comment: "user can override the maximum sensor days if using an anubis transmitter")
+    }()
+    
+    static let maxSensorAgeInDaysOverridenAnubisMessage = {
+        return String(format: NSLocalizedString("maxSensorAgeInDaysOverridenAnubisMessage", tableName: filename, bundle: Bundle.main, value: "\nIf using an Anubis transmitter, you can enter here the maximum number of days for the sensor lifetime (maximum %@)\n\nNote that this is only a visual reminder. It will not end the sensor session when reached.\n\nEnter 0 to use the default of %@ days", comment: "user can override the maximum sensor days if using an anubis transmitter"), ConstantsDexcomG5.maxSensorAgeInDaysOverridenAnubisMaximum.stringWithoutTrailingZeroes, ConstantsDexcomG5.maxSensorAgeInDays.stringWithoutTrailingZeroes)
+    }()
+    
+    static let isAnubis: String = {
+        return NSLocalizedString("isAnubis", tableName: filename, bundle: Bundle.main, value: "Is Anubis?", comment: "Dexcom bluetooth screen. Is it an anubis transmitter")
+    }()
+    
+    static let readSuccess: String = {
+        return NSLocalizedString("readSuccess", tableName: filename, bundle: Bundle.main, value: "Read Success", comment: "Bluetooth peripheral screen. row title for the read success line")
+    }()
 }
