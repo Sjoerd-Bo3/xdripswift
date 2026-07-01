@@ -18,7 +18,7 @@ extension XDripWatchComplication.EntryView {
                 VStack(spacing: 0) {
                     HStack(alignment: .center) {
                         HStack(alignment: .center, spacing: 4) {
-                            Text("\(entry.widgetState.bgValueStringInUserChosenUnit)\(entry.widgetState.trendArrow()) ")
+                            Text("\(entry.widgetState.bgValueStringInUserChosenUnit())\(entry.widgetState.trendArrow()) ")
                                 .font(.system(size: entry.widgetState.isSmallScreen() ? 20 : 24)).bold()
                                 .foregroundStyle(entry.widgetState.bgTextColor())
                             
@@ -66,36 +66,33 @@ extension XDripWatchComplication.EntryView {
                     .foregroundStyle(.teal)
                     .padding(0)
                     
-                    Text(Texts_WatchComplication.goTo)
-                        .font(.system(size: entry.widgetState.isSmallScreen() ? 10 : 14))
-                        .foregroundStyle(.colorPrimary)
-                    
-                    + Text(" \(ConstantsHomeView.applicationName)")
-                        .font(.system(size: entry.widgetState.isSmallScreen() ? 10 : 14)).bold()
-                        .foregroundStyle(.white)
-                    
-                    + Text(" -> ")
-                        .font(.system(size: entry.widgetState.isSmallScreen() ? 10 : 14))
-                        .foregroundStyle(.colorPrimary)
-                    
-                    + Text(Texts_WatchComplication.settings)
-                        .font(.system(size: entry.widgetState.isSmallScreen() ? 10 : 14)).bold()
-                        .foregroundStyle(.white)
-                    
-                    + Text(" -> ")
-                        .font(.system(size: entry.widgetState.isSmallScreen() ? 10 : 14))
-                        .foregroundStyle(.colorPrimary)
-                    
-                    + Text(Texts_WatchComplication.appleWatch + " ")
-                        .font(.system(size: entry.widgetState.isSmallScreen() ? 10 : 14)).bold()
-                        .foregroundStyle(.white)
-                    
-                    + Text(Texts_WatchComplication.toEnable)
-                        .font(.system(size: entry.widgetState.isSmallScreen() ? 10 : 14))
-                        .foregroundStyle(.colorPrimary)
+                    Group {
+                        Text(Texts_WatchComplication.goTo)
+                            .font(.system(size: entry.widgetState.isSmallScreen() ? 10 : 14))
+                            .foregroundStyle(.colorPrimary)
+                        Text(" \(ConstantsHomeView.applicationName)")
+                            .font(.system(size: entry.widgetState.isSmallScreen() ? 10 : 14)).bold()
+                            .foregroundStyle(.white)
+                        Text(" -> ")
+                            .font(.system(size: entry.widgetState.isSmallScreen() ? 10 : 14))
+                            .foregroundStyle(.colorPrimary)
+                        Text(Texts_WatchComplication.settings)
+                            .font(.system(size: entry.widgetState.isSmallScreen() ? 10 : 14)).bold()
+                            .foregroundStyle(.white)
+                        Text(" -> ")
+                            .font(.system(size: entry.widgetState.isSmallScreen() ? 10 : 14))
+                            .foregroundStyle(.colorPrimary)
+                        Text(Texts_WatchComplication.appleWatch + " ")
+                            .font(.system(size: entry.widgetState.isSmallScreen() ? 10 : 14)).bold()
+                            .foregroundStyle(.white)
+                        Text(Texts_WatchComplication.toEnable)
+                            .font(.system(size: entry.widgetState.isSmallScreen() ? 10 : 14))
+                            .foregroundStyle(.colorPrimary)
+                    }
                 }
             }
         }
         .widgetBackground(backgroundView: Color.clear)
     }
 }
+

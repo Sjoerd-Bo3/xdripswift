@@ -12,15 +12,15 @@ jobs:
   certificates:
     name: Create Certificates
     needs: validate
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       # Uncomment to manually select latest Xcode if needed
       #- name: Select Latest Xcode
-      #  run: "sudo xcode-select --switch /Applications/Xcode_15.3.app/Contents/Developer"
+      #  run: "sudo xcode-select --switch /Applications/Xcode_16.2.app/Contents/Developer"
       
       # Checks-out the repo
       - name: Checkout Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         
       # Patch Fastlane Match to not print tables
       - name: Patch Match Tables
