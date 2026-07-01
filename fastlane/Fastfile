@@ -183,7 +183,9 @@ platform :ios do
     ids = xdrip_app_identifiers
     # Suffix the visible names too so variant identifiers are easy to tell apart
     # in the Apple Developer portal (e.g. "xdrip .left").
-    name_suffix = BUNDLE_SUFFIX.empty? ? "" : " #{BUNDLE_SUFFIX}"
+    # Apple app-id NAMES allow only alphanumerics and spaces (no dots), so strip
+    # the dot from the suffix here. The bundle *identifier* keeps its dots.
+    name_suffix = BUNDLE_SUFFIX.empty? ? "" : " #{BUNDLE_SUFFIX.delete('.')}"
 
     configure_bundle_id("xdrip#{name_suffix}", ids[0], [
       Spaceship::ConnectAPI::BundleIdCapability::Type::APP_GROUPS,
