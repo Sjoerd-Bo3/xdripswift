@@ -48,6 +48,10 @@ jobs:
       contents: write
     strategy:
       fail-fast: false
+      # Serialize variants: every job reads/writes the SAME Match-Secrets git repo,
+      # so running them in parallel makes their pushes clobber each other (only the
+      # last variant's provisioning profiles survive). One at a time is correct.
+      max-parallel: 1
       matrix:
         include:
           - variant: normal
