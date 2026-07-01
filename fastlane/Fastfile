@@ -207,24 +207,11 @@ platform :ios do
       Spaceship::ConnectAPI::BundleIdCapability::Type::APP_GROUPS
     ])
 
-    # Auto-create the App Store Connect app record for this variant's main app so
-    # TestFlight uploads have somewhere to land. Only the main app gets a record
-    # (extensions don't). skip_devcenter: the bundle IDs are already created above.
-    # produce is idempotent: if the record already exists it is left untouched.
-    # The App Store Connect name must be globally unique, so it includes the team
-    # id and variant; it is NOT the on-device name (that comes from the app's
-    # MAIN_APP_DISPLAY_NAME), so it only needs to be unique, not pretty.
-    variant_label = BUNDLE_SUFFIX.empty? ? "" : BUNDLE_SUFFIX.delete(".")
-    app_store_name = ["xDrip4iOS", variant_label, TEAMID].reject { |s| s.nil? || s.empty? }.join(" ")
-
-    produce(
-      app_identifier: ids[0],
-      app_name: app_store_name,
-      language: "English",
-      sku: ids[0],
-      team_id: TEAMID,
-      skip_devcenter: true
-    )
+    # NOTE: the App Store Connect app record must be created by hand (App Store
+    # Connect -> Apps -> +). Apple's App Store Connect API cannot create app
+    # records, and fastlane's `produce` falls back to Apple-ID (username) auth,
+    # which the API-key-only browser build does not have. So there is no reliable
+    # way to auto-create the record here.
 
   end
 
