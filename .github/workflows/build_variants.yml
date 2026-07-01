@@ -8,9 +8,11 @@ run-name: ${{ inputs.phase }} · variants from ${{ inputs.source_ref || github.r
 # Loop/Trio container.
 #
 # Recommended order (run the workflow once per phase):
-#   1. phase = identifiers  -> registers all bundle IDs in your Apple account
-#   2. (manual, once) attach the Loop/Trio app groups to the new IDs and create
-#      the App Store Connect app records for com.<TEAM>.xdripswift[.left|.right]
+#   1. phase = identifiers  -> creates the bundle IDs AND the App Store Connect app
+#                              records for each variant (via the API key)
+#   2. (manual, once) tick your existing Loop/Trio app groups onto the new
+#      left/right bundle IDs (App Store Connect app-group *attach* is not reliably
+#      automatable with API-key auth). Normal is already set up from prior builds.
 #   3. phase = build        -> builds each variant and uploads to its TestFlight app
 
 on:
