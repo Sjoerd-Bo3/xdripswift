@@ -352,6 +352,7 @@ public class LoopManager: NSObject {
         if let cgm = buildTrioCgmStatusDict() {
             payload["cgm"] = cgm
         }
+        trace("in richTrioSharePayload: recentReadings=%{public}@, cgm included=%{public}@", log: log, category: ConstantsLog.categoryLoopManager, type: .info, recentReadings.count.description, (payload["cgm"] != nil).description)
         return payload
     }
 
@@ -364,7 +365,10 @@ public class LoopManager: NSObject {
     ///   cgm.status = { localizedMessage: String, displayState: "normal"|"warning"|"critical"|"warmup"|"expired", imageName: String }
     private func buildTrioCgmStatusDict() -> [String: Any]? {
 
-        guard let startDate = UserDefaults.standard.activeSensorStartDate else { return nil }
+        guard let startDate = UserDefaults.standard.activeSensorStartDate else {
+            trace("in buildTrioCgmStatusDict: activeSensorStartDate is NIL -> no cgm dict, Trio gets no arc/status", log: log, category: ConstantsLog.categoryLoopManager, type: .info)
+            return nil
+        }
 
         let now = Date()
         let sensorAgeMinutes = now.timeIntervalSince(startDate) / 60.0
@@ -386,6 +390,8 @@ public class LoopManager: NSObject {
             ignoreCalculatedValue: false
         ).count > 0
         let isInWarmup = sensorAgeMinutes < warmupMinutes && !hasRecentReading
+
+        trace("in buildTrioCgmStatusDict: startDate=%{public}@, sensorAgeMinutes=%{public}@, activeSensorMaxSensorAgeInDays=%{public}@, maxAgeMinutes=%{public}@, warmupMinutes=%{public}@, hasRecentReading=%{public}@, isInWarmup=%{public}@, activeSensorDescription=%{public}@", log: log, category: ConstantsLog.categoryLoopManager, type: .info, startDate.description, sensorAgeMinutes.description, (UserDefaults.standard.activeSensorMaxSensorAgeInDays ?? -1).description, maxAgeMinutes.description, warmupMinutes.description, hasRecentReading.description, isInWarmup.description, UserDefaults.standard.activeSensorDescription ?? "nil")
 
         var sensorDict: [String: Any] = [:]
         var statusDict: [String: Any] = [:]
@@ -435,6 +441,8 @@ public class LoopManager: NSObject {
         var cgm: [String: Any] = [:]
         if !sensorDict.isEmpty { cgm["sensor"] = sensorDict }
         if !statusDict.isEmpty { cgm["status"] = statusDict }
+
+        trace("in buildTrioCgmStatusDict: result -> sensor=%{public}@ status=%{public}@ sensorDict=%{public}@", log: log, category: ConstantsLog.categoryLoopManager, type: .info, (!sensorDict.isEmpty).description, (!statusDict.isEmpty).description, sensorDict.description)
 
         return cgm.isEmpty ? nil : cgm
     }
