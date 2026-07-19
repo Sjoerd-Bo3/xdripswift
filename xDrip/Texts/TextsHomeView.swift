@@ -250,5 +250,13 @@ enum Texts_HomeView {
     static let showTreatments: String = {
         return NSLocalizedString("showTreatments", tableName: filename, bundle: Bundle.main, value: "Show Treatments", comment: "show the treatments on the chart")
     }()
-    
+
+    static let warmingUp: String = {
+        return NSLocalizedString("warmingUp", tableName: filename, bundle: Bundle.main, value: "Warming up", comment: "CGM sensor status shared to Trio while the sensor is still warming up")
+    }()
+
+    static let sensorExpired: String = {
+        return NSLocalizedString("sensorExpired", tableName: filename, bundle: Bundle.main, value: "Sensor expired", comment: "CGM sensor status shared to Trio once the sensor has passed its maximum age")
+    }()
+
 }

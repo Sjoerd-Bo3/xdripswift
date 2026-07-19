@@ -217,8 +217,19 @@ public class LoopManager: NSObject {
                 trace("    in share, latestReadings JSON = (unavailable UTF8). count = %{public}@", log: log, category: ConstantsLog.categoryLoopManager, type: .debug, dictionary.count.description)
             }
             
-            // write readings to shared user defaults
-            sharedUserDefaults.set(data, forKey: "latestReadings")
+            // write readings to shared user defaults.
+            // When sharing to Trio with extended CGM status enabled, wrap the readings in
+            // the "rich" top-level dictionary that Trio's AppGroupSource understands
+            // (recentReadings + cgm.status + cgm.sensor). For every other consumer (Loop,
+            // stock Trio that only parses a top-level array, or when the option is off) we
+            // keep writing the legacy top-level array, so nothing else is affected.
+            var dataToShare = data
+            if UserDefaults.standard.loopShareType == .trio,
+               UserDefaults.standard.shareExtendedCgmStatusToTrio,
+               let richData = try? JSONSerialization.data(withJSONObject: richTrioSharePayload(recentReadings: dictionary)) {
+                dataToShare = richData
+            }
+            sharedUserDefaults.set(dataToShare, forKey: "latestReadings")
             
             // mirror exactly what we wrote so local deletions are reflected immediately
             UserDefaults.standard.readingsStoredInSharedUserDefaultsAsDictionary = dictionary
@@ -328,6 +339,115 @@ public class LoopManager: NSObject {
             return Date(timeIntervalSince1970: epoch)
         }
         return nil
+    }
+
+    // MARK: - Trio extended CGM status sharing
+
+    /// Builds the "rich" top-level payload Trio's AppGroupSource accepts: the legacy
+    /// readings array under `recentReadings`, plus an optional `cgm` object carrying
+    /// the sensor lifecycle and a status message. Used only when sharing to Trio with
+    /// `shareExtendedCgmStatusToTrio` enabled.
+    private func richTrioSharePayload(recentReadings: [[String: Any]]) -> [String: Any] {
+        var payload: [String: Any] = ["recentReadings": recentReadings]
+        if let cgm = buildTrioCgmStatusDict() {
+            payload["cgm"] = cgm
+        }
+        return payload
+    }
+
+    /// Derives the CGM status / sensor-lifecycle dictionary from the active sensor info
+    /// xDrip already persists in UserDefaults. Returns nil when there is not enough info
+    /// (no active sensor start date), in which case Trio simply shows nothing extra.
+    ///
+    /// Shape consumed by Trio:
+    ///   cgm.sensor = { percentComplete: 0...1, isInWarmup: Bool, isExpired: Bool, progressState: "normal"|"warning"|"critical" }
+    ///   cgm.status = { localizedMessage: String, displayState: "normal"|"warning"|"critical"|"warmup"|"expired", imageName: String }
+    private func buildTrioCgmStatusDict() -> [String: Any]? {
+
+        guard let startDate = UserDefaults.standard.activeSensorStartDate else { return nil }
+
+        let now = Date()
+        let sensorAgeMinutes = now.timeIntervalSince(startDate) / 60.0
+
+        // a negative age means the start date is in the future (bad data) - skip
+        guard sensorAgeMinutes >= 0 else { return nil }
+
+        // max sensor age, in minutes, as reported by the transmitter (0 if unknown)
+        let maxAgeMinutes = (UserDefaults.standard.activeSensorMaxSensorAgeInDays ?? 0) * 24 * 60
+
+        // is the sensor still warming up? Use the per-type warm-up window, but treat the
+        // presence of a recent reading as proof that warm-up has finished.
+        let warmupMinutes = trioWarmupMinutesForActiveSensor()
+        let hasRecentReading = bgReadingsAccessor.getLatestBgReadings(
+            limit: 1,
+            fromDate: now.addingTimeInterval(-TimeInterval(minutes: 15)),
+            forSensor: nil,
+            ignoreRawData: true,
+            ignoreCalculatedValue: false
+        ).count > 0
+        let isInWarmup = sensorAgeMinutes < warmupMinutes && !hasRecentReading
+
+        var sensorDict: [String: Any] = [:]
+        var statusDict: [String: Any] = [:]
+
+        if maxAgeMinutes > 0 {
+
+            let percentComplete = max(0.0, min(1.0, sensorAgeMinutes / maxAgeMinutes))
+            let isExpired = sensorAgeMinutes >= maxAgeMinutes
+            let minutesLeft = maxAgeMinutes - sensorAgeMinutes
+
+            // Trio requires percentComplete to render the lifecycle arc
+            sensorDict["percentComplete"] = percentComplete
+            sensorDict["isInWarmup"] = isInWarmup
+            sensorDict["isExpired"] = isExpired
+
+            let progressState: String
+            if isExpired || minutesLeft <= (12 * 60) {
+                progressState = "critical"
+            } else if minutesLeft <= (24 * 60) {
+                progressState = "warning"
+            } else {
+                progressState = "normal"
+            }
+            sensorDict["progressState"] = progressState
+
+            // Only surface a status message for noteworthy states; during normal
+            // operation we leave it empty so Trio shows just the arc.
+            if isInWarmup {
+                statusDict["localizedMessage"] = Texts_HomeView.warmingUp
+                statusDict["displayState"] = "warmup"
+                statusDict["imageName"] = "hourglass"
+            } else if isExpired {
+                statusDict["localizedMessage"] = Texts_HomeView.sensorExpired
+                statusDict["displayState"] = "expired"
+                statusDict["imageName"] = "exclamationmark.triangle.fill"
+            }
+
+        } else if isInWarmup {
+
+            // max age unknown (e.g. some follower modes) - we can still surface warm-up
+            sensorDict["isInWarmup"] = true
+            statusDict["localizedMessage"] = Texts_HomeView.warmingUp
+            statusDict["displayState"] = "warmup"
+            statusDict["imageName"] = "hourglass"
+        }
+
+        var cgm: [String: Any] = [:]
+        if !sensorDict.isEmpty { cgm["sensor"] = sensorDict }
+        if !statusDict.isEmpty { cgm["status"] = statusDict }
+
+        return cgm.isEmpty ? nil : cgm
+    }
+
+    /// Warm-up window for the active sensor, in minutes. Inferred from the active sensor
+    /// description (Dexcom vs Libre) with a sensible default, since xDrip does not persist
+    /// the sensor type as an enum.
+    private func trioWarmupMinutesForActiveSensor() -> Double {
+        let description = (UserDefaults.standard.activeSensorDescription ?? "").lowercased()
+        if description.contains("dexcom") {
+            return ConstantsMaster.minimumSensorWarmUpRequiredInMinutesDexcomG5G6
+        }
+        return ConstantsMaster.minimumSensorWarmUpRequiredInMinutes
     }
 
 }

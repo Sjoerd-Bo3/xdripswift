@@ -394,6 +394,9 @@ extension UserDefaults {
         
         /// Loop/OS-AID sharing will be limited to just once every 5 minutes if true
         case shareToLoopOnceEvery5Minutes = "shareToLoopOnceEvery5Minutes"
+
+        /// when sharing to Trio, also write the "rich" CGM status/lifecycle payload (sensor warm-up, % complete, expiry). Opt-in, default false, only applies to the Trio app group.
+        case shareExtendedCgmStatusToTrio = "shareExtendedCgmStatusToTrio"
         
 
         // Trace
@@ -2357,6 +2360,16 @@ extension UserDefaults {
         }
         set {
             set(newValue, forKey: Key.shareToLoopOnceEvery5Minutes.rawValue)
+        }
+    }
+
+    /// when sharing to Trio, also write the rich CGM status/lifecycle payload (sensor warm-up, % complete, expiry) that Trio's AppGroupSource understands. Opt-in, default false. Has no effect on Loop / stock Trio because it is only written to the Trio app group when enabled.
+    var shareExtendedCgmStatusToTrio: Bool {
+        get {
+            return bool(forKey: Key.shareExtendedCgmStatusToTrio.rawValue)
+        }
+        set {
+            set(newValue, forKey: Key.shareExtendedCgmStatusToTrio.rawValue)
         }
     }
     
