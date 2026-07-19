@@ -35,11 +35,6 @@ on:
         description: Comma-separated subset to run (e.g. "left,right"); blank = all
         required: false
         default: ""
-  # TEMP: build on push to this update branch so the 6.3.3 port can be validated
-  # without workflow_dispatch. Builds only "normal". Remove before adopting to master.
-  push:
-    branches:
-      - update/master-6.3.3
 
 concurrency:
   group: build-variants-${{ inputs.phase }}
@@ -73,8 +68,6 @@ jobs:
         id: gate
         run: |
           WANT="${{ inputs.variants }}"
-          # On a push (no inputs), build these variants (normal already validated).
-          if [ -z "$WANT" ] && [ "${{ github.event_name }}" = "push" ]; then WANT="left,right"; fi
           if [ -z "$WANT" ] || printf '%s' ",$WANT," | grep -q ",${{ matrix.variant }},"; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
@@ -156,9 +149,7 @@ jobs:
           XDRIP_BUNDLE_ID_SUFFIX: ${{ matrix.suffix }}
         run: |
           set -e
-          PHASE="${{ inputs.phase }}"
-          [ -z "$PHASE" ] && PHASE="build"   # push events carry no inputs
-          case "$PHASE" in
+          case "${{ inputs.phase }}" in
             identifiers)  bundle exec fastlane identifiers ;;
             certificates) bundle exec fastlane certs ;;
             build)
