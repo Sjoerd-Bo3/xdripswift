@@ -407,16 +407,13 @@ public class LoopManager: NSObject {
             sensorDict["isInWarmup"] = isInWarmup
             sensorDict["isExpired"] = isExpired
 
-            // Absolute lifetime so Trio can render a remaining-time label below the
-            // glucose bubble (and drive its own expiry logic). Epoch seconds are used
-            // for the two dates so the value survives the plist round-trip regardless
-            // of how Trio decodes it. remainingMinutes is a convenience; Trio can also
-            // recompute it from expiresAt.
+            // Absolute expiry (epoch seconds) so Trio's existing sensor countdown /
+            // lifecycle arc can work for the xDrip app-group source. Trio resolves the
+            // sensor expiry from a native CGMManager, which the app-group source does
+            // not have, so without this field Trio's cgmSensorExpiresAt stays nil and
+            // neither the arc (mid-life) nor the remaining-time tag ever appears.
             let expiresAt = startDate.addingTimeInterval(maxAgeMinutes * 60.0)
-            sensorDict["sessionStartDate"] = startDate.timeIntervalSince1970
             sensorDict["expiresAt"] = expiresAt.timeIntervalSince1970
-            sensorDict["maxSensorAgeInDays"] = maxAgeMinutes / (24.0 * 60.0)
-            sensorDict["remainingMinutes"] = max(0.0, minutesLeft)
 
             let progressState: String
             if isExpired || minutesLeft <= (12 * 60) {
