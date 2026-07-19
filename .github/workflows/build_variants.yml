@@ -35,6 +35,10 @@ on:
         description: Comma-separated subset to run (e.g. "left,right"); blank = all
         required: false
         default: ""
+  # TEMP: build all variants on push to this branch (diagnostic build). Remove after.
+  push:
+    branches:
+      - update/master-6.3.3
 
 concurrency:
   group: build-variants-${{ inputs.phase }}
@@ -149,7 +153,9 @@ jobs:
           XDRIP_BUNDLE_ID_SUFFIX: ${{ matrix.suffix }}
         run: |
           set -e
-          case "${{ inputs.phase }}" in
+          PHASE="${{ inputs.phase }}"
+          [ -z "$PHASE" ] && PHASE="build"
+          case "$PHASE" in
             identifiers)  bundle exec fastlane identifiers ;;
             certificates) bundle exec fastlane certs ;;
             build)
