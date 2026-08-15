@@ -32,6 +32,8 @@ extension UserDefaults {
         case isMaster = "isMaster"
         /// should master data be uploaded to Nightscout?
         case masterUploadDataToNightscout = "masterUploadDataToNightscout"
+        /// should we try to keep the app alive in the background when in master mode?
+        case masterBackgroundKeepAliveEnabled = "masterBackgroundKeepAliveEnabled"
         /// which follower mode is selected?
         case followerDataSourceType = "followerDataSourceType"
         /// should follower data (if not from Nightscout) be uploaded to Nightscout?
@@ -522,7 +524,21 @@ extension UserDefaults {
             set(!newValue, forKey: Key.isMaster.rawValue)
         }
     }
-    
+
+    /// in master mode, should the app prevent iOS from suspending it while in the background, by playing a short silence at regular intervals?
+    ///
+    /// without this the app relies entirely on CoreBluetooth waking it for each connection. On iOS 27 a pending connect can stay unserviced
+    /// for tens of minutes - and overnight for hours - while the app is suspended, and is then delivered the instant the app is resumed
+    @objc dynamic var masterBackgroundKeepAliveEnabled: Bool {
+        // default value for bool in userdefaults is false, and this should be enabled by default, so store the inverse
+        get {
+            return !bool(forKey: Key.masterBackgroundKeepAliveEnabled.rawValue)
+        }
+        set {
+            set(!newValue, forKey: Key.masterBackgroundKeepAliveEnabled.rawValue)
+        }
+    }
+
     /// should the master CGM data be uploaded to Nightscout?
     @objc dynamic var masterUploadDataToNightscout: Bool {
         // default value for bool in userdefaults is false
