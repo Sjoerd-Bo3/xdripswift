@@ -225,6 +225,12 @@
 /// data source settings, enable background keep alive
 "settingsviews_labelfollowerKeepAliveType" = "Background Keep-alive";
 
+/// data source settings, master mode, enable background keep alive
+"settingsviews_labelMasterKeepAlive" = "Actief houden op achtergrond";
+
+/// data source settings, master mode, explanation of background keep alive
+"settingsviews_masterKeepAliveMessage" = "Houdt de app wakker op de achtergrond zodat verbindingen met de zender niet door iOS worden uitgesteld. Uitzetten scheelt batterij, maar metingen kunnen dan vele minuten te laat komen, vooral 's nachts.";
+
 /// this setting is required
 "settingsviews_valueIsRequired" = "⚠️ Required";
 

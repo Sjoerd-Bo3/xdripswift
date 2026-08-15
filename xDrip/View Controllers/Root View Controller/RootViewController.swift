@@ -451,6 +451,12 @@ final class RootViewController: UIViewController, ObservableObject {
     
     /// constant for key in ApplicationManager.shared.addClosureToRunWhenAppDidEnterBackground - trace that app goes to background
     private let applicationManagerKeyTraceAppGoesToBackGround = "applicationManagerKeyTraceAppGoesToBackGround"
+
+    /// constant for key in ApplicationManager.shared.addClosureToRunWhenAppDidEnterBackground - resume the master mode keep-alive
+    private let applicationManagerKeyResumeMasterKeepAlive = "applicationManagerKeyResumeMasterKeepAlive"
+
+    /// constant for key in ApplicationManager.shared.addClosureToRunWhenAppWillEnterForeground - suspend the master mode keep-alive
+    private let applicationManagerKeySuspendMasterKeepAlive = "applicationManagerKeySuspendMasterKeepAlive"
     
     /// constant for key in ApplicationManager.shared.addClosureToRunWhenAppWillEnterForeground - trace that app goes to background
     private let applicationManagerKeyTraceAppGoesToForeground = "applicationManagerKeyTraceAppGoesToForeground"
@@ -478,6 +484,12 @@ final class RootViewController: UIViewController, ObservableObject {
     
     /// CoreDataManager to be used throughout the project
     private var coreDataManager: CoreDataManager?
+
+    /// AVAudioPlayer that plays a very short silence, used to stop iOS from suspending the app while in master mode - see enableMasterSuspensionPrevention
+    private var masterKeepAliveAudioPlayer: AVAudioPlayer?
+
+    /// timer that triggers the silence playback, only running while the app is in the background
+    private var masterKeepAliveTimer: RepeatingTimer?
     
     /// to solve problem that sometemes UserDefaults key value changes is triggered twice for just one change
     private let keyValueObserverTimeKeeper: KeyValueObserverTimeKeeper = KeyValueObserverTimeKeeper()
@@ -857,6 +869,9 @@ final class RootViewController: UIViewController, ObservableObject {
         // observe setting changes
         // changing from follower to master or vice versa
         UserDefaults.standard.addObserver(self, forKeyPath: UserDefaults.Key.isMaster.rawValue, options: .new, context: nil)
+
+        // start or stop the master mode keep-alive when the user toggles it
+        UserDefaults.standard.addObserver(self, forKeyPath: UserDefaults.Key.masterBackgroundKeepAliveEnabled.rawValue, options: .new, context: nil)
         
         // see if the user has changed the chart x axis timescale
         UserDefaults.standard.addObserver(self, forKeyPath: UserDefaults.KeysCharts.chartWidthInHours.rawValue, options: .new, context: nil)
@@ -959,6 +974,9 @@ final class RootViewController: UIViewController, ObservableObject {
         
         // setup AVAudioSession
         setupAVAudioSession()
+
+        // start the master mode keep-alive if it's wanted
+        updateMasterSuspensionPrevention()
         
         // user may have activated the screen lock function so that the screen stays open, when going back to background, set isIdleTimerDisabled back to false and update the UI so that it's ready to come to foreground when required.
         ApplicationManager.shared.addClosureToRunWhenAppDidEnterBackground(key: applicationManagerKeyIsIdleTimerDisabled, closure: {
@@ -1089,6 +1107,98 @@ final class RootViewController: UIViewController, ObservableObject {
         }
     }
     
+    /// whether the master mode keep-alive should be running at all
+    private var masterKeepAliveIsWanted: Bool {
+        return UserDefaults.standard.isMaster && UserDefaults.standard.masterBackgroundKeepAliveEnabled
+    }
+
+    /// starts or stops the master mode keep-alive, depending on the current settings. Safe to call as often as needed.
+    private func updateMasterSuspensionPrevention() {
+        if masterKeepAliveIsWanted {
+            enableMasterSuspensionPrevention()
+        } else {
+            disableMasterSuspensionPrevention()
+        }
+    }
+
+    /// plays a very short silence at regular intervals while the app is in the background, to stop iOS from suspending it
+    ///
+    /// in master mode the app depends on CoreBluetooth waking it for every connection to the transmitter. On iOS 27 a pending connect can
+    /// remain unserviced while the app is suspended - measured at anything from 13 minutes to over 7 hours - and is then delivered within
+    /// milliseconds of the app being resumed. Keeping the app out of the suspended state is the only thing the app itself can do about that.
+    ///
+    /// this mirrors what the follower managers already do, and relies on the 'audio' background mode that is declared in Info.plist
+    private func enableMasterSuspensionPrevention() {
+
+        // create the audio player if it doesn't exist yet
+        if masterKeepAliveAudioPlayer == nil {
+            guard let url = Bundle.main.url(forResource: ConstantsSuspensionPrevention.soundFileName, withExtension: "") else {
+                trace("in enableMasterSuspensionPrevention, could not find sound file %{public}@, keep-alive will not run", log: self.log, category: ConstantsLog.categoryRootView, type: .error, ConstantsSuspensionPrevention.soundFileName)
+                return
+            }
+
+            do {
+                masterKeepAliveAudioPlayer = try AVAudioPlayer(contentsOf: url)
+            } catch {
+                trace("in enableMasterSuspensionPrevention, could not create audioPlayer, error = %{public}@", log: self.log, category: ConstantsLog.categoryRootView, type: .error, error.localizedDescription)
+                return
+            }
+        }
+
+        // create the timer if it doesn't exist yet. It is deliberately kept around when the keep-alive is switched off, a suspended
+        // RepeatingTimer is cheap and reusing it avoids churn if the user toggles the setting
+        if masterKeepAliveTimer == nil {
+            trace("in enableMasterSuspensionPrevention, master mode keep-alive enabled, interval = %{public}d seconds", log: self.log, category: ConstantsLog.categoryRootView, type: .info, ConstantsSuspensionPrevention.intervalNormal)
+
+            masterKeepAliveTimer = RepeatingTimer(timeInterval: TimeInterval(Double(ConstantsSuspensionPrevention.intervalNormal)), eventHandler: { [weak self] in
+                guard let self = self else { return }
+
+                if let audioPlayer = self.masterKeepAliveAudioPlayer, !audioPlayer.isPlaying {
+                    audioPlayer.play()
+                }
+            })
+        }
+
+        // the closures are stored by key, so adding them again after the keep-alive was switched off simply replaces them
+        // the timer only needs to run while the app is in the background, in the foreground the app isn't going to be suspended anyway
+        ApplicationManager.shared.addClosureToRunWhenAppDidEnterBackground(key: applicationManagerKeyResumeMasterKeepAlive, closure: { [weak self] in
+            guard let self = self, self.masterKeepAliveIsWanted else { return }
+
+            self.masterKeepAliveTimer?.resume()
+
+            if let audioPlayer = self.masterKeepAliveAudioPlayer, !audioPlayer.isPlaying {
+                audioPlayer.play()
+            }
+        })
+
+        ApplicationManager.shared.addClosureToRunWhenAppWillEnterForeground(key: applicationManagerKeySuspendMasterKeepAlive, closure: { [weak self] in
+            self?.masterKeepAliveTimer?.suspend()
+        })
+
+        // if we're already in the background when this gets enabled, start right away
+        if UIApplication.shared.applicationState != .active {
+            masterKeepAliveTimer?.resume()
+            masterKeepAliveAudioPlayer?.play()
+        }
+    }
+
+    /// stops the master mode keep-alive
+    private func disableMasterSuspensionPrevention() {
+
+        // the timer instance is kept, only suspended - see enableMasterSuspensionPrevention. Calling suspend on an already suspended
+        // RepeatingTimer is a no-op, so this is safe whether or not the keep-alive was ever running
+        if masterKeepAliveTimer != nil {
+            trace("in disableMasterSuspensionPrevention, master mode keep-alive disabled", log: self.log, category: ConstantsLog.categoryRootView, type: .info)
+        }
+
+        masterKeepAliveTimer?.suspend()
+
+        masterKeepAliveAudioPlayer?.stop()
+
+        ApplicationManager.shared.removeClosureToRunWhenAppDidEnterBackground(key: applicationManagerKeyResumeMasterKeepAlive)
+        ApplicationManager.shared.removeClosureToRunWhenAppWillEnterForeground(key: applicationManagerKeySuspendMasterKeepAlive)
+    }
+
     /// sets AVAudioSession category to AVAudioSession.Category.playback with option mixWithOthers and
     /// AVAudioSession.sharedInstance().setActive(true)
     private func setupAVAudioSession() {
@@ -1591,8 +1701,14 @@ final class RootViewController: UIViewController, ObservableObject {
         }
         
         switch keyPathEnum {
+        case UserDefaults.Key.masterBackgroundKeepAliveEnabled:
+            updateMasterSuspensionPrevention()
+
         case UserDefaults.Key.isMaster:
             changeButtonsStatusTo(enabled: UserDefaults.standard.isMaster)
+
+            // the keep-alive only applies to master mode
+            updateMasterSuspensionPrevention()
             
             guard let cgmTransmitter = self.bluetoothPeripheralManager?.getCGMTransmitter() else {break}
             

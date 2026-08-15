@@ -99,7 +99,15 @@ class Texts_SettingsView {
     static let labelfollowerKeepAliveType: String = {
         return NSLocalizedString("settingsviews_labelfollowerKeepAliveType", tableName: filename, bundle: Bundle.main, value: "Background Keep-alive", comment: "data source settings, enable background keep alive")
     }()
-    
+
+    static let labelMasterKeepAlive: String = {
+        return NSLocalizedString("settingsviews_labelMasterKeepAlive", tableName: filename, bundle: Bundle.main, value: "Background Keep-alive", comment: "data source settings, master mode, enable background keep alive")
+    }()
+
+    static let masterKeepAliveMessage: String = {
+        return NSLocalizedString("settingsviews_masterKeepAliveMessage", tableName: filename, bundle: Bundle.main, value: "Keeps the app awake in the background so that transmitter connections are not delayed by iOS. Disabling this saves battery, but readings can be delayed by many minutes, especially overnight.", comment: "data source settings, master mode, explanation of background keep alive")
+    }()
+
     static let followerKeepAliveTypeDisabled: String = {
         return NSLocalizedString("settingsviews_followerKeepAliveTypeDisabled", tableName: filename, bundle: Bundle.main, value: "Disabled", comment: "data source settings, keep-alive mode is set to disabled")
     }()
