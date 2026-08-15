@@ -19,7 +19,12 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
     func scene(_ scene: UIScene, willConnectTo session: UISceneSession, options connectionOptions: UIScene.ConnectionOptions) {
         guard let windowScene = (scene as? UIWindowScene) else { return }
         let window = UIWindow(windowScene: windowScene)
-        window.rootViewController = UIStoryboard(name: "Main", bundle: nil).instantiateInitialViewController()
+
+        // take the root view controller from AppDelegate rather than instantiating one here. It may already exist and be fully set up,
+        // which is the case when iOS launched the app into the background first, eg for a CoreBluetooth state restoration event.
+        // Instantiating a second one here would give us a second BluetoothPeripheralManager and with it a second CBCentralManager
+        window.rootViewController = (UIApplication.shared.delegate as? AppDelegate)?.rootViewControllerCreateIfNeeded()
+
         self.window = window
         window.makeKeyAndVisible()
         
