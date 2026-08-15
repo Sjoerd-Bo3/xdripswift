@@ -16,14 +16,60 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var restrictRotation:UIInterfaceOrientationMask = .all
     
     private var log = OSLog(subsystem: ConstantsLog.subSystem, category: ConstantsLog.categoryAppDelegate)
-    
+
+    /// the app's root view controller, ie the tab bar controller in Main.storyboard
+    ///
+    /// this is deliberately owned by AppDelegate and not by SceneDelegate. The complete application stack, including
+    /// BluetoothPeripheralManager and with it the CBCentralManager, gets built in RootViewController's viewDidLoad. When iOS relaunches
+    /// the app in the background - which is exactly what happens for a CoreBluetooth state restoration event - it does not connect a
+    /// UIWindowScene, so scene(_:willConnectTo:) never runs. If the view controller were created only there, no CBCentralManager would be
+    /// recreated, CoreBluetooth restoration would time out, and the app would stop receiving readings until manually opened by the user.
+    private var rootViewController: UIViewController?
+
     // MARK: - Application Life Cycle
-    
+
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         trace("****************************************", log: log, category: ConstantsLog.categoryAppDelegate, type: .info)
         trace("*** in didFinishLaunchingWithOptions ***", log: log, category: ConstantsLog.categoryAppDelegate, type: .info)
         trace("****************************************", log: log, category: ConstantsLog.categoryAppDelegate, type: .info)
+
+        // if the app is launched into the background then no scene will connect, so build the view controller stack here. This has to
+        // happen before this function returns, because that's when CoreBluetooth expects the central manager to be recreated with its
+        // restore identifier
+        if application.applicationState == .background {
+            trace("in didFinishLaunchingWithOptions, app launched into the background, creating rootViewController without waiting for a scene", log: log, category: ConstantsLog.categoryAppDelegate, type: .info)
+
+            _ = rootViewControllerCreateIfNeeded()
+        }
+
         return true
+    }
+
+    /// returns the root view controller, creating it first if it doesn't exist yet
+    ///
+    /// creating it forces viewDidLoad to run, which is what sets up the application data, including the bluetooth stack. There must only
+    /// ever be one instance - a second one would create a second BluetoothPeripheralManager and with it a second CBCentralManager
+    func rootViewControllerCreateIfNeeded() -> UIViewController? {
+
+        if let rootViewController = rootViewController { return rootViewController }
+
+        guard let newRootViewController = UIStoryboard(name: "Main", bundle: nil).instantiateInitialViewController() else {
+            trace("in rootViewControllerCreateIfNeeded, failed to instantiate the initial view controller from the Main storyboard", log: log, category: ConstantsLog.categoryAppDelegate, type: .error)
+            return nil
+        }
+
+        rootViewController = newRootViewController
+
+        // force the view to load, this is what runs viewDidLoad
+        newRootViewController.loadViewIfNeeded()
+
+        // loading a UITabBarController's own view does not necessarily load the view of the tab that is selected, force it, because
+        // RootViewController - the first tab - is where the application stack gets created
+        if let tabBarController = newRootViewController as? UITabBarController {
+            (tabBarController.selectedViewController ?? tabBarController.viewControllers?.first)?.loadViewIfNeeded()
+        }
+
+        return rootViewController
     }
 
     /// used to allow/prevent the specific views from changing orientation when rotating the device

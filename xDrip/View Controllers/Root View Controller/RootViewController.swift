@@ -822,59 +822,38 @@ final class RootViewController: UIViewController, ObservableObject {
         // nillify the active sensor start date on start-up
         UserDefaults.standard.activeSensorStartDate = nil
         
-        // Setup Core Data Manager - setting up coreDataManager happens asynchronously
-        // completion handler is called when finished. This gives the app time to already continue setup which is independent of coredata, like initializing the views
-        coreDataManager = CoreDataManager(modelName: ConstantsCoreData.modelName, completion: {
-            
-            self.setupApplicationData()
-            
-            // housekeeper should be non nil here, kall housekeeper
-            self.houseKeeper?.doAppStartUpHouseKeeping()
-            
-            // update label texts, minutes ago, diff and value
-            self.updateLabelsAndChart(overrideApplicationState: true)
-            
-            // update the mini-chart
-            self.updateMiniChart()
-            
-            // update data source info
-            self.updateDataSourceInfo()
-            
-            // update statistics related outlets
-            self.updateStatistics(animate: true, overrideApplicationState: true)
-            
-            // create badge counter
-            self.createBgReadingNotificationAndSetAppBadge(overrideShowReadingInNotification: true)
-            
-            // if licenseinfo not yet accepted, show license info with only ok button
-            if !UserDefaults.standard.licenseInfoAccepted {
-                
-                let alert = UIAlertController(title: ConstantsHomeView.applicationName, message: Texts_HomeView.licenseInfo + ConstantsHomeView.infoEmailAddress, actionHandler: {
-                    
-                    // set licenseInfoAccepted to true
-                    UserDefaults.standard.licenseInfoAccepted = true
-                    
-                    // create info screen about transmitters
-                    let infoScreenAlert = UIAlertController(title: Texts_HomeView.info, message: Texts_HomeView.transmitterInfo, actionHandler: nil)
-                    
-                    self.present(infoScreenAlert, animated: true, completion: nil)
-                    
-                })
-                
-                self.present(alert, animated: true, completion: nil)
-                
-            }
-            
-            // launch Nightscout sync
-            self.setNightscoutSyncRequiredToTrue(forceNow: true)
-            
-            self.updateLiveActivityAndWidgets(forceRestart: false)
-            
-        })
-        
+        // Setup Core Data Manager
+        //
+        // when the app is launched straight into the background - which is what happens when iOS relaunches it for a CoreBluetooth
+        // state restoration event - the complete setup has to be finished before didFinishLaunchingWithOptions returns. It's
+        // setupApplicationData that creates the BluetoothPeripheralManager and with it the CBCentralManager, and CoreBluetooth expects
+        // that manager to be recreated with its restore identifier during launch. So in that case set up Core Data synchronously.
+        //
+        // in the normal (foreground) case setting up coreDataManager happens asynchronously, the completion handler is called when
+        // finished. This gives the app time to already continue setup which is independent of coredata, like initializing the views
+        let launchedIntoBackground = UIApplication.shared.applicationState == .background
+
+        if launchedIntoBackground {
+            trace("in viewDidLoad, app was launched into the background, setting up core data synchronously", log: self.log, category: ConstantsLog.categoryRootView, type: .info)
+
+            coreDataManager = CoreDataManager(modelName: ConstantsCoreData.modelName)
+
+        } else {
+            coreDataManager = CoreDataManager(modelName: ConstantsCoreData.modelName, completion: {
+                self.coreDataManagerDidFinishSetup(launchedIntoBackground: false)
+            })
+        }
+
         // Setup View
         setupView()
-        
+
+        // in the background case the Core Data stack is already up, so finish the setup right here. This happens after setupView for the
+        // same reason it does in the asynchronous case : setupView calls reloadChart while the chart generator is still nil, which draws
+        // the empty axes and gridlines without pulling any readings from Core Data
+        if launchedIntoBackground {
+            coreDataManagerDidFinishSetup(launchedIntoBackground: true)
+        }
+
         // observe setting changes
         // changing from follower to master or vice versa
         UserDefaults.standard.addObserver(self, forKeyPath: UserDefaults.Key.isMaster.rawValue, options: .new, context: nil)
@@ -1121,9 +1100,67 @@ final class RootViewController: UIViewController, ObservableObject {
         }
     }
     
+    /// finishes the application setup once the Core Data stack is ready
+    ///
+    /// split off from the CoreDataManager completion handler because it also needs to be callable synchronously, see viewDidLoad
+    /// - parameters:
+    ///     - launchedIntoBackground : if true then the app was launched by iOS into the background and there is no window and no user
+    ///     looking at the app. Only the data path is set up, the UI work is skipped - it would allocate memory (chart) that a
+    ///     background launched app can ill afford, and it's done anyway by the closures that run when the app enters the foreground.
+    private func coreDataManagerDidFinishSetup(launchedIntoBackground: Bool) {
+
+        setupApplicationData()
+
+        // housekeeper should be non nil here, kall housekeeper
+        houseKeeper?.doAppStartUpHouseKeeping()
+
+        // launch Nightscout sync
+        setNightscoutSyncRequiredToTrue(forceNow: true)
+
+        // everything below this point is UI work, which is pointless without a window
+        if launchedIntoBackground { return }
+
+        // update label texts, minutes ago, diff and value
+        updateLabelsAndChart(overrideApplicationState: true)
+
+        // update the mini-chart
+        updateMiniChart()
+
+        // update data source info
+        updateDataSourceInfo()
+
+        // update statistics related outlets
+        updateStatistics(animate: true, overrideApplicationState: true)
+
+        // create badge counter
+        createBgReadingNotificationAndSetAppBadge(overrideShowReadingInNotification: true)
+
+        // if licenseinfo not yet accepted, show license info with only ok button
+        if !UserDefaults.standard.licenseInfoAccepted {
+
+            let alert = UIAlertController(title: ConstantsHomeView.applicationName, message: Texts_HomeView.licenseInfo + ConstantsHomeView.infoEmailAddress, actionHandler: {
+
+                // set licenseInfoAccepted to true
+                UserDefaults.standard.licenseInfoAccepted = true
+
+                // create info screen about transmitters
+                let infoScreenAlert = UIAlertController(title: Texts_HomeView.info, message: Texts_HomeView.transmitterInfo, actionHandler: nil)
+
+                self.present(infoScreenAlert, animated: true, completion: nil)
+
+            })
+
+            self.present(alert, animated: true, completion: nil)
+
+        }
+
+        updateLiveActivityAndWidgets(forceRestart: false)
+
+    }
+
     // creates activeSensor, bgreadingsAccessor, calibrationsAccessor, NightscoutSyncManager, soundPlayer, dexcomShareUploadManager, nightscoutFollowManager, alertManager, healthKitManager, bgReadingSpeaker, bluetoothPeripheralManager, calendarManager, housekeeper, contactImageManager
     private func setupApplicationData() {
-        
+
         // setup Trace
         Trace.initialize(coreDataManager: coreDataManager)
         

@@ -100,31 +100,54 @@ public final class CoreDataManager {
         // Set Properties
         self.modelName = modelName
         self.completion = completion
-        
+
         // Setup Core Data Stack
         setupCoreDataStack()
     }
-    
+
+    /// creates a CoreDataManager and adds the persistent store synchronously, ie the store is ready to use as soon as this initializer returns
+    ///
+    /// to be used when the app is launched straight into the background, eg when iOS relaunches it for a CoreBluetooth state restoration event.
+    /// In that case everything must be finished before didFinishLaunchingWithOptions returns - the app can be suspended again immediately after,
+    /// so there's no guarantee that work dispatched to another queue will still get a chance to run.
+    init(modelName: String) {
+        // Set Properties
+        self.modelName = modelName
+
+        // there is no completion handler in this case, the caller continues synchronously after this initializer returns
+        self.completion = {}
+
+        // Add Persistent Store on the calling thread, so it's done when we return
+        addPersistentStore(to: persistentStoreCoordinator)
+
+        addSaveChangesClosures()
+    }
+
     // MARK: - Helper Methods
-    
+
     private func setupCoreDataStack() {
         // Fetch Persistent Store Coordinator directly to avoid nil when using parent/child contexts
         let persistentStoreCoordinator = self.persistentStoreCoordinator
-        
+
         DispatchQueue.global().async {
             // Add Persistent Store
             self.addPersistentStore(to: persistentStoreCoordinator)
-            
+
             // Invoke Completion On Main Queue
             DispatchQueue.main.async { self.completion() }
         }
-        
+
+        addSaveChangesClosures()
+    }
+
+    private func addSaveChangesClosures() {
+
         // when app terminates, call saveChangesAtTermination, just in case that somewhere in the code saveChanges is not called when needed
         ApplicationManager.shared.addClosureToRunWhenAppWillTerminate(key: applicationManagerKeySaveChangesWhenAppTerminates, closure: {self.saveChangesAtTermination()})
-        
+
         // when app goes to background, call saveChanges, just in case that somewhere in the code saveChanges is not called when needed
         ApplicationManager.shared.addClosureToRunWhenAppDidEnterBackground(key: applicationManagerKeySaveChangesWhenAppGoesToBackground, closure: {self.saveChanges()})
-        
+
     }
 
     // MARK: -
