@@ -455,7 +455,7 @@ class BluetoothTransmitter: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     /// the app could stop reconnecting altogether. Without the keep-alive the app is suspended between readings anyway, which throttles the
     /// reconnect churn by itself.
     private var reconnectBackoffIsSafe: Bool {
-        return UserDefaults.standard.isMaster && UserDefaults.standard.masterBackgroundKeepAliveEnabled
+        return UserDefaults.standard.isMaster && UserDefaults.standard.masterBackgroundKeepAliveType.seconds != nil
     }
 
     /// reconnects to the peripheral, either straight away or - for transmitter types that opt in - after a growing delay if the previous

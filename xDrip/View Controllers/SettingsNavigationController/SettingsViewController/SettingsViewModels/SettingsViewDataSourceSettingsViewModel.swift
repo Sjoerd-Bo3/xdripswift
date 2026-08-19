@@ -285,9 +285,26 @@ class SettingsViewDataSourceSettingsViewModel: NSObject, SettingsViewModelProtoc
             }
             
         case .followerExtraRow3:
-            // in master mode this row is a switch, tapping it just explains what the switch does
+            // in master mode this row picks how often the app plays its silence to stay alive, or switches that off
             if UserDefaults.standard.isMaster {
-                return .showInfoText(title: Texts_SettingsView.labelMasterKeepAlive, message: "\n" + Texts_SettingsView.masterKeepAliveMessage)
+                let allTypes = MasterBackgroundKeepAliveType.allCases
+                let currentType = UserDefaults.standard.masterBackgroundKeepAliveType
+
+                return .selectFromList(title: Texts_SettingsView.labelMasterKeepAlive, data: allTypes.map { $0.description }, selectedRow: allTypes.firstIndex(of: currentType), actionTitle: nil, cancelTitle: nil, actionHandler: { (index: Int) in
+
+                    guard index >= 0, index < allTypes.count else { return }
+
+                    let newType = allTypes[index]
+
+                    guard newType != currentType else { return }
+
+                    trace("master background keep-alive was changed from '%{public}@' to '%{public}@'", log: self.log, category: ConstantsLog.categorySettingsViewDataSourceSettingsViewModel, type: .info, currentType.description, newType.description)
+
+                    UserDefaults.standard.masterBackgroundKeepAliveType = newType
+
+                    self.callMessageHandlerInMainThread(title: Texts_SettingsView.labelMasterKeepAlive, message: "\n" + Texts_SettingsView.masterKeepAliveMessage)
+
+                }, cancelHandler: nil, didSelectRowHandler: nil)
             }
 
             // data to be displayed in list from which user needs to pick a follower keep-alive type
@@ -647,11 +664,7 @@ class SettingsViewDataSourceSettingsViewModel: NSObject, SettingsViewModelProtoc
         case .followerExtraRow10:
             return UserDefaults.standard.activeSensorStartDate != nil ? .disclosureIndicator : .none
             
-        case .followerExtraRow3:
-            // in master mode this row carries a switch, not a sub-list
-            return UserDefaults.standard.isMaster ? .none : .disclosureIndicator
-
-        case .followerExtraRow4, .followerExtraRow7, .followerExtraRow8:
+        case .followerExtraRow3, .followerExtraRow4, .followerExtraRow7, .followerExtraRow8:
             return .disclosureIndicator
         }
     }
@@ -670,7 +683,7 @@ class SettingsViewDataSourceSettingsViewModel: NSObject, SettingsViewModelProtoc
             return UserDefaults.standard.isMaster ? (UserDefaults.standard.nightscoutEnabled ? nil : Texts_SettingsView.nightscoutNotEnabledRowText) : UserDefaults.standard.followerPatientName ?? nil
             
         case .followerExtraRow3:
-            return UserDefaults.standard.isMaster ? nil : UserDefaults.standard.followerBackgroundKeepAliveType.description
+            return UserDefaults.standard.isMaster ? UserDefaults.standard.masterBackgroundKeepAliveType.description : UserDefaults.standard.followerBackgroundKeepAliveType.description
             
         case .followerExtraRow4:
             return UserDefaults.standard.followerDataSourceType.description
@@ -861,15 +874,7 @@ class SettingsViewDataSourceSettingsViewModel: NSObject, SettingsViewModelProtoc
                 UserDefaults.standard.activeSensorMaxSensorAgeInDays = UserDefaults.standard.libreLinkUpIs15DaySensor ? ConstantsLibreLinkUp.libreLinkUpMaxSensorAgeInDaysLibrePlus : ConstantsLibreLinkUp.libreLinkUpMaxSensorAgeInDays
             })
 
-        case .followerExtraRow3:
-            guard UserDefaults.standard.isMaster else { return nil }
-
-            return UISwitch(isOn: UserDefaults.standard.masterBackgroundKeepAliveEnabled, action: { (isOn: Bool) in
-                trace("masterBackgroundKeepAliveEnabled changed by user to %{public}@", log: self.log, category: ConstantsLog.categorySettingsViewDataSourceSettingsViewModel, type: .info, isOn.description)
-                UserDefaults.standard.masterBackgroundKeepAliveEnabled = isOn
-            })
-
-        case .bloodGlucoseUnit, .masterFollower, .followerExtraRow4, .followerExtraRow5, .followerExtraRow7, .followerExtraRow8, .followerExtraRow9, .followerExtraRow10, .followerExtraRow11:
+        case .bloodGlucoseUnit, .masterFollower, .followerExtraRow3, .followerExtraRow4, .followerExtraRow5, .followerExtraRow7, .followerExtraRow8, .followerExtraRow9, .followerExtraRow10, .followerExtraRow11:
             return nil
         }
     }

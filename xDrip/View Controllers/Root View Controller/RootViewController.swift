@@ -491,9 +491,9 @@ final class RootViewController: UIViewController, ObservableObject {
     /// timer that triggers the silence playback, only running while the app is in the background
     private var masterKeepAliveTimer: RepeatingTimer?
 
-    /// interval currently used by the master mode keep-alive, in seconds. Starts at ConstantsSuspensionPrevention.intervalMaster and drops
-    /// to the fallback if the watchdog sees that the app got suspended anyway
-    private var masterKeepAliveInterval = ConstantsSuspensionPrevention.intervalMaster
+    /// interval currently used by the master mode keep-alive, in seconds. Follows the user setting, but the watchdog can drop it to the
+    /// fallback if it turns out the app got suspended anyway. Zero until the setting has been read.
+    private var masterKeepAliveInterval = 0
 
     /// when the master mode keep-alive timer last fired, used to detect that the app was suspended in between
     private var masterKeepAliveLastFireDate: Date?
@@ -878,7 +878,7 @@ final class RootViewController: UIViewController, ObservableObject {
         UserDefaults.standard.addObserver(self, forKeyPath: UserDefaults.Key.isMaster.rawValue, options: .new, context: nil)
 
         // start or stop the master mode keep-alive when the user toggles it
-        UserDefaults.standard.addObserver(self, forKeyPath: UserDefaults.Key.masterBackgroundKeepAliveEnabled.rawValue, options: .new, context: nil)
+        UserDefaults.standard.addObserver(self, forKeyPath: UserDefaults.Key.masterBackgroundKeepAliveType.rawValue, options: .new, context: nil)
         
         // see if the user has changed the chart x axis timescale
         UserDefaults.standard.addObserver(self, forKeyPath: UserDefaults.KeysCharts.chartWidthInHours.rawValue, options: .new, context: nil)
@@ -1116,16 +1116,25 @@ final class RootViewController: UIViewController, ObservableObject {
     
     /// whether the master mode keep-alive should be running at all
     private var masterKeepAliveIsWanted: Bool {
-        return UserDefaults.standard.isMaster && UserDefaults.standard.masterBackgroundKeepAliveEnabled
+        return UserDefaults.standard.isMaster && UserDefaults.standard.masterBackgroundKeepAliveType.seconds != nil
     }
 
-    /// starts or stops the master mode keep-alive, depending on the current settings. Safe to call as often as needed.
+    /// starts, stops or re-intervals the master mode keep-alive, depending on the current settings. Safe to call as often as needed.
     private func updateMasterSuspensionPrevention() {
-        if masterKeepAliveIsWanted {
-            enableMasterSuspensionPrevention()
-        } else {
+        guard masterKeepAliveIsWanted, let secondsWanted = UserDefaults.standard.masterBackgroundKeepAliveType.seconds else {
             disableMasterSuspensionPrevention()
+            return
         }
+
+        // the user may have picked a different interval, in which case the timer has to be rebuilt - a RepeatingTimer's interval is fixed
+        // at creation. This also undoes a fallback the watchdog made earlier, which is what you want if the user is deliberately retrying.
+        if masterKeepAliveInterval != secondsWanted {
+            masterKeepAliveInterval = secondsWanted
+            masterKeepAliveTimer?.suspend()
+            masterKeepAliveTimer = nil
+        }
+
+        enableMasterSuspensionPrevention()
     }
 
     /// plays a very short silence at regular intervals while the app is in the background, to stop iOS from suspending it
@@ -1757,7 +1766,7 @@ final class RootViewController: UIViewController, ObservableObject {
         }
         
         switch keyPathEnum {
-        case UserDefaults.Key.masterBackgroundKeepAliveEnabled:
+        case UserDefaults.Key.masterBackgroundKeepAliveType:
             updateMasterSuspensionPrevention()
 
         case UserDefaults.Key.isMaster:
