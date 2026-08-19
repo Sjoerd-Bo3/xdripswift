@@ -113,6 +113,31 @@ class BluetoothTransmitter: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     /// Names of devices we should avoid reconnecting to for a short period after a recent disconnect
     private var temporarilyRejectedDeviceNames: [String: Date] = [:]
     private let temporaryRejectionCooldownSeconds: TimeInterval = 180
+
+    // MARK: - reconnect backoff
+
+    /// should an unproductive connection - one where the peripheral accepted the connection but never sent any data - be followed by an
+    /// increasing delay before reconnecting?
+    ///
+    /// to be overridden by transmitter types that deliberately disconnect after each reading and then wait for the next advertisement. For
+    /// those, reconnecting immediately means repeatedly connecting to a peripheral that has nothing to say yet, which costs radio time and
+    /// battery for nothing. Default false, so transmitter types that were not measured keep the original behaviour.
+    var useReconnectBackoffAfterUnproductiveConnect: Bool { return false }
+
+    /// did the peripheral send any data during the connection that is currently open (or was most recently open)?
+    private var receivedDataOnCurrentConnection = false
+
+    /// number of consecutive connections that produced no data at all, used to grow the reconnect delay
+    private var consecutiveUnproductiveConnects = 0
+
+    /// a reconnect that is waiting for its delay to expire, kept so we don't schedule several at once
+    private var pendingReconnectWorkItem: DispatchWorkItem?
+
+    /// first delay after an unproductive connection, in seconds. Doubles on each further unproductive connection.
+    private let reconnectBackoffBaseSeconds: Double = 5
+
+    /// upper bound for the reconnect delay, in seconds. Kept well below the 5 minute cadence of the transmitters this applies to.
+    private let reconnectBackoffMaxSeconds: Double = 60
     
     /// set the connection options
     private var connectOptions: [String: Any] {
@@ -201,6 +226,8 @@ class BluetoothTransmitter: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     /// Hook for subclasses to clear CoreBluetooth delegates/timers before ARC release.
     /// Default clears CoreBluetooth delegates on the main thread synchronously to avoid races with CB callbacks.
     @objc func prepareForRelease() {
+        cancelPendingReconnect()
+
         let clear = {
             self.centralManager?.delegate = nil
             self.peripheral?.delegate = nil
@@ -247,6 +274,9 @@ class BluetoothTransmitter: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     func disconnectAndForget() {
         // do not auto‑reconnect after a user‑initiated forget (for the next disconnect only)
         shouldReconnectOnNextDisconnect = false
+
+        // and drop a delayed reconnect if one was already waiting
+        cancelPendingReconnect()
         // request disconnect first so OS callbacks can complete
         disconnect()
         // clear local references (we are intentionally *not* clearing central/peripheral delegates here
@@ -418,6 +448,66 @@ class BluetoothTransmitter: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     
     // MARK: - fileprivate functions
     
+    /// delaying a reconnect is only safe while something is keeping the app out of the suspended state
+    ///
+    /// a delayed reconnect is a timer, and timers do not fire in a suspended app. A plain pending connect handed straight to CoreBluetooth
+    /// does survive suspension - that is the mechanism the app normally relies on - so without the keep-alive we must not hold it back, or
+    /// the app could stop reconnecting altogether. Without the keep-alive the app is suspended between readings anyway, which throttles the
+    /// reconnect churn by itself.
+    private var reconnectBackoffIsSafe: Bool {
+        return UserDefaults.standard.isMaster && UserDefaults.standard.masterBackgroundKeepAliveEnabled
+    }
+
+    /// reconnects to the peripheral, either straight away or - for transmitter types that opt in - after a growing delay if the previous
+    /// connection produced no data at all
+    ///
+    /// transmitters like the Dexcom G5/G6 disconnect after each reading and have nothing to say until they next advertise, roughly five
+    /// minutes later. Reconnecting immediately means the peripheral accepts the connection and drops it again within half a second, over and
+    /// over, for the whole gap. Measured on a real device: 479 connections for 125 readings, three quarters of them less than a minute apart.
+    private func scheduleReconnect(to peripheralToReconnectTo: CBPeripheral) {
+
+        // if a reconnect is already waiting for its delay to expire, don't stack another one on top. This also swallows the duplicate
+        // didDisconnectPeripheral callbacks that CoreBluetooth delivers for a single connection - measured at two to three per connection
+        if pendingReconnectWorkItem != nil {
+            trace("in scheduleReconnect, a reconnect is already pending, ignoring this disconnect", log: log, category: ConstantsLog.categoryBlueToothTransmitter, type: .debug)
+            return
+        }
+
+        if receivedDataOnCurrentConnection {
+            // the connection did what it was for, start counting from scratch
+            consecutiveUnproductiveConnects = 0
+        } else {
+            consecutiveUnproductiveConnects += 1
+        }
+
+        guard useReconnectBackoffAfterUnproductiveConnect, consecutiveUnproductiveConnects > 0, reconnectBackoffIsSafe else {
+            trace("in didDisconnectPeripheral, will try to reconnect", log: log, category: ConstantsLog.categoryBlueToothTransmitter, type: .debug)
+            centralManager?.connect(peripheralToReconnectTo, options: connectOptions)
+            return
+        }
+
+        let delay = min(reconnectBackoffBaseSeconds * pow(2, Double(consecutiveUnproductiveConnects - 1)), reconnectBackoffMaxSeconds)
+
+        trace("in scheduleReconnect, last connection produced no data (%{public}d in a row), reconnecting in %{public}d seconds", log: log, category: ConstantsLog.categoryBlueToothTransmitter, type: .info, consecutiveUnproductiveConnects, Int(delay))
+
+        let workItem = DispatchWorkItem { [weak self] in
+            guard let self = self else { return }
+
+            self.pendingReconnectWorkItem = nil
+            self.centralManager?.connect(peripheralToReconnectTo, options: self.connectOptions)
+        }
+
+        pendingReconnectWorkItem = workItem
+
+        centralQueue.asyncAfter(deadline: .now() + delay, execute: workItem)
+    }
+
+    /// cancels a reconnect that is waiting for its delay to expire, if there is one
+    private func cancelPendingReconnect() {
+        pendingReconnectWorkItem?.cancel()
+        pendingReconnectWorkItem = nil
+    }
+
     /// stops scanning and connect. To be called after diddiscover
     fileprivate func stopScanAndconnect(to peripheral: CBPeripheral) {
         
@@ -557,7 +647,13 @@ class BluetoothTransmitter: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     func centralManager(_ central: CBCentralManager, didConnect peripheral: CBPeripheral) {
         
         cancelConnectionTimer()
-        
+
+        // we are connected, so a reconnect that is still waiting for its delay is pointless
+        cancelPendingReconnect()
+
+        // a new connection is open, it has not produced any data yet
+        receivedDataOnCurrentConnection = false
+
         timeStampLastStatusUpdate = Date()
         
         let now = Date()
@@ -686,8 +782,7 @@ class BluetoothTransmitter: NSObject, CBCentralManagerDelegate, CBPeripheralDele
         // if self.peripheral == nil, then a manual disconnect or something like that has occurred, no need to reconnect
         // otherwise disconnect occurred because of other (like out of range), so let's try to reconnect
         if shouldReconnectOnNextDisconnect, let ownPeripheral = self.peripheral {
-            trace("in didDisconnectPeripheral, will try to reconnect", log: log, category: ConstantsLog.categoryBlueToothTransmitter, type: .debug)
-            centralManager?.connect(ownPeripheral, options: connectOptions)
+            scheduleReconnect(to: ownPeripheral)
         } else {
             trace("in didDisconnectPeripheral, reconnect disabled for this disconnect or peripheral is nil, will not try to reconnect", log: log, category: ConstantsLog.categoryBlueToothTransmitter, type: .info)
             _ = startScanning()
@@ -766,7 +861,10 @@ class BluetoothTransmitter: NSObject, CBCentralManagerDelegate, CBPeripheralDele
     }
     
     func peripheral(_ peripheral: CBPeripheral, didUpdateValueFor characteristic: CBCharacteristic, error: Error?) {
-        
+
+        // the peripheral is talking to us, so this connection is worth having had
+        receivedDataOnCurrentConnection = true
+
         // trace the received value
         if let value = characteristic.value {
             trace("in didUpdateValueFor, data = %{public}@", log: log, category: ConstantsLog.categoryBlueToothTransmitter, type: .debug, value.hexEncodedString())
