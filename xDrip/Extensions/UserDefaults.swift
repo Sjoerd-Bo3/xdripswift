@@ -32,8 +32,8 @@ extension UserDefaults {
         case isMaster = "isMaster"
         /// should master data be uploaded to Nightscout?
         case masterUploadDataToNightscout = "masterUploadDataToNightscout"
-        /// how often should the app play a short silence to stay alive in the background when in master mode, if at all?
-        case masterBackgroundKeepAliveType = "masterBackgroundKeepAliveType"
+        /// how often, in seconds, should the app play a short silence to stay alive in the background when in master mode? 0 means never
+        case masterBackgroundKeepAliveSeconds = "masterBackgroundKeepAliveSeconds"
         /// which follower mode is selected?
         case followerDataSourceType = "followerDataSourceType"
         /// should follower data (if not from Nightscout) be uploaded to Nightscout?
@@ -529,15 +529,16 @@ extension UserDefaults {
     ///
     /// without this the app relies entirely on CoreBluetooth waking it for each connection. On iOS 27 a pending connect can stay unserviced
     /// for tens of minutes - and overnight for hours - while the app is suspended, and is then delivered the instant the app is resumed
-    @objc dynamic var masterBackgroundKeepAliveType: MasterBackgroundKeepAliveType {
+    /// interval in seconds, 0 means the keep-alive is switched off
+    @objc dynamic var masterBackgroundKeepAliveSeconds: Int {
         get {
             // if the key was never set then use the default, which keeps readings coming at a moderate battery cost
-            guard object(forKey: Key.masterBackgroundKeepAliveType.rawValue) != nil else { return .seconds30 }
+            guard object(forKey: Key.masterBackgroundKeepAliveSeconds.rawValue) != nil else { return ConstantsSuspensionPrevention.intervalMasterDefault }
 
-            return MasterBackgroundKeepAliveType(rawValue: integer(forKey: Key.masterBackgroundKeepAliveType.rawValue)) ?? .seconds30
+            return integer(forKey: Key.masterBackgroundKeepAliveSeconds.rawValue)
         }
         set {
-            set(newValue.rawValue, forKey: Key.masterBackgroundKeepAliveType.rawValue)
+            set(newValue, forKey: Key.masterBackgroundKeepAliveSeconds.rawValue)
         }
     }
 

@@ -285,26 +285,31 @@ class SettingsViewDataSourceSettingsViewModel: NSObject, SettingsViewModelProtoc
             }
             
         case .followerExtraRow3:
-            // in master mode this row picks how often the app plays its silence to stay alive, or switches that off
+            // in master mode this row asks for the interval in seconds, so a longer one can be tried without rebuilding the app
             if UserDefaults.standard.isMaster {
-                let allTypes = MasterBackgroundKeepAliveType.allCases
-                let currentType = UserDefaults.standard.masterBackgroundKeepAliveType
+                let currentSeconds = UserDefaults.standard.masterBackgroundKeepAliveSeconds
 
-                return .selectFromList(title: Texts_SettingsView.labelMasterKeepAlive, data: allTypes.map { $0.description }, selectedRow: allTypes.firstIndex(of: currentType), actionTitle: nil, cancelTitle: nil, actionHandler: { (index: Int) in
+                return .askText(title: Texts_SettingsView.labelMasterKeepAlive, message: Texts_SettingsView.masterKeepAliveMessage, keyboardType: .numberPad, text: currentSeconds.description, placeHolder: ConstantsSuspensionPrevention.intervalMasterDefault.description, actionTitle: nil, cancelTitle: nil, actionHandler: { (text: String) in
 
-                    guard index >= 0, index < allTypes.count else { return }
+                    guard let newSeconds = Int(text.trimmingCharacters(in: .whitespaces)) else { return }
 
-                    let newType = allTypes[index]
+                    guard newSeconds != currentSeconds else { return }
 
-                    guard newType != currentType else { return }
+                    trace("master background keep-alive interval was changed from %{public}d to %{public}d seconds", log: self.log, category: ConstantsLog.categorySettingsViewDataSourceSettingsViewModel, type: .info, currentSeconds, newSeconds)
 
-                    trace("master background keep-alive was changed from '%{public}@' to '%{public}@'", log: self.log, category: ConstantsLog.categorySettingsViewDataSourceSettingsViewModel, type: .info, currentType.description, newType.description)
+                    UserDefaults.standard.masterBackgroundKeepAliveSeconds = newSeconds
 
-                    UserDefaults.standard.masterBackgroundKeepAliveType = newType
+                }, cancelHandler: nil, inputValidator: { (text: String) in
 
-                    self.callMessageHandlerInMainThread(title: Texts_SettingsView.labelMasterKeepAlive, message: "\n" + Texts_SettingsView.masterKeepAliveMessage)
+                    // 0 switches the keep-alive off, anything else has to be a whole number within the supported range
+                    guard let seconds = Int(text.trimmingCharacters(in: .whitespaces)),
+                          seconds == 0 || (seconds >= ConstantsSuspensionPrevention.intervalMasterMinimum && seconds <= ConstantsSuspensionPrevention.intervalMasterMaximum) else {
 
-                }, cancelHandler: nil, didSelectRowHandler: nil)
+                        return String(format: Texts_SettingsView.masterKeepAliveInvalidValue, ConstantsSuspensionPrevention.intervalMasterMinimum.description, ConstantsSuspensionPrevention.intervalMasterMaximum.description)
+                    }
+
+                    return nil
+                })
             }
 
             // data to be displayed in list from which user needs to pick a follower keep-alive type
@@ -683,7 +688,13 @@ class SettingsViewDataSourceSettingsViewModel: NSObject, SettingsViewModelProtoc
             return UserDefaults.standard.isMaster ? (UserDefaults.standard.nightscoutEnabled ? nil : Texts_SettingsView.nightscoutNotEnabledRowText) : UserDefaults.standard.followerPatientName ?? nil
             
         case .followerExtraRow3:
-            return UserDefaults.standard.isMaster ? UserDefaults.standard.masterBackgroundKeepAliveType.description : UserDefaults.standard.followerBackgroundKeepAliveType.description
+            if UserDefaults.standard.isMaster {
+                let seconds = UserDefaults.standard.masterBackgroundKeepAliveSeconds
+
+                return seconds > 0 ? seconds.description + " " + Texts_SettingsView.masterKeepAliveSecondsShort : Texts_SettingsView.masterKeepAliveDisabled
+            }
+
+            return UserDefaults.standard.followerBackgroundKeepAliveType.description
             
         case .followerExtraRow4:
             return UserDefaults.standard.followerDataSourceType.description

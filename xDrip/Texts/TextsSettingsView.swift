@@ -116,6 +116,10 @@ class Texts_SettingsView {
         return NSLocalizedString("settingsviews_masterKeepAliveSecondsShort", tableName: filename, bundle: Bundle.main, value: "seconds", comment: "data source settings, master mode, unit for the background keep alive interval")
     }()
 
+    static let masterKeepAliveInvalidValue: String = {
+        return NSLocalizedString("settingsviews_masterKeepAliveInvalidValue", tableName: filename, bundle: Bundle.main, value: "Enter a whole number of seconds between %1$@ and %2$@, or 0 to switch the keep-alive off.", comment: "data source settings, master mode, shown when the entered keep alive interval is not usable")
+    }()
+
     static let followerKeepAliveTypeDisabled: String = {
         return NSLocalizedString("settingsviews_followerKeepAliveTypeDisabled", tableName: filename, bundle: Bundle.main, value: "Disabled", comment: "data source settings, keep-alive mode is set to disabled")
     }()

@@ -237,6 +237,9 @@
 /// data source settings, master mode, unit for the background keep alive interval
 "settingsviews_masterKeepAliveSecondsShort" = "seconden";
 
+/// data source settings, master mode, shown when the entered keep alive interval is not usable
+"settingsviews_masterKeepAliveInvalidValue" = "Voer een heel aantal seconden in tussen %1$@ en %2$@, of 0 om het actief houden uit te zetten.";
+
 /// this setting is required
 "settingsviews_valueIsRequired" = "⚠️ Required";
 

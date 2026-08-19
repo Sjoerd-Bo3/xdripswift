@@ -878,7 +878,7 @@ final class RootViewController: UIViewController, ObservableObject {
         UserDefaults.standard.addObserver(self, forKeyPath: UserDefaults.Key.isMaster.rawValue, options: .new, context: nil)
 
         // start or stop the master mode keep-alive when the user toggles it
-        UserDefaults.standard.addObserver(self, forKeyPath: UserDefaults.Key.masterBackgroundKeepAliveType.rawValue, options: .new, context: nil)
+        UserDefaults.standard.addObserver(self, forKeyPath: UserDefaults.Key.masterBackgroundKeepAliveSeconds.rawValue, options: .new, context: nil)
         
         // see if the user has changed the chart x axis timescale
         UserDefaults.standard.addObserver(self, forKeyPath: UserDefaults.KeysCharts.chartWidthInHours.rawValue, options: .new, context: nil)
@@ -1116,12 +1116,14 @@ final class RootViewController: UIViewController, ObservableObject {
     
     /// whether the master mode keep-alive should be running at all
     private var masterKeepAliveIsWanted: Bool {
-        return UserDefaults.standard.isMaster && UserDefaults.standard.masterBackgroundKeepAliveType.seconds != nil
+        return UserDefaults.standard.isMaster && UserDefaults.standard.masterBackgroundKeepAliveSeconds > 0
     }
 
     /// starts, stops or re-intervals the master mode keep-alive, depending on the current settings. Safe to call as often as needed.
     private func updateMasterSuspensionPrevention() {
-        guard masterKeepAliveIsWanted, let secondsWanted = UserDefaults.standard.masterBackgroundKeepAliveType.seconds else {
+        let secondsWanted = UserDefaults.standard.masterBackgroundKeepAliveSeconds
+
+        guard masterKeepAliveIsWanted, secondsWanted > 0 else {
             disableMasterSuspensionPrevention()
             return
         }
@@ -1766,7 +1768,7 @@ final class RootViewController: UIViewController, ObservableObject {
         }
         
         switch keyPathEnum {
-        case UserDefaults.Key.masterBackgroundKeepAliveType:
+        case UserDefaults.Key.masterBackgroundKeepAliveSeconds:
             updateMasterSuspensionPrevention()
 
         case UserDefaults.Key.isMaster:
