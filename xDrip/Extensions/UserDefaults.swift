@@ -32,8 +32,8 @@ extension UserDefaults {
         case isMaster = "isMaster"
         /// should master data be uploaded to Nightscout?
         case masterUploadDataToNightscout = "masterUploadDataToNightscout"
-        /// should we try to keep the app alive in the background when in master mode?
-        case masterBackgroundKeepAliveEnabled = "masterBackgroundKeepAliveEnabled"
+        /// how often, in seconds, should the app play a short silence to stay alive in the background when in master mode? 0 means never
+        case masterBackgroundKeepAliveSeconds = "masterBackgroundKeepAliveSeconds"
         /// which follower mode is selected?
         case followerDataSourceType = "followerDataSourceType"
         /// should follower data (if not from Nightscout) be uploaded to Nightscout?
@@ -525,17 +525,20 @@ extension UserDefaults {
         }
     }
 
-    /// in master mode, should the app prevent iOS from suspending it while in the background, by playing a short silence at regular intervals?
+    /// in master mode, how often should the app play a short silence to stop iOS suspending it while in the background?
     ///
     /// without this the app relies entirely on CoreBluetooth waking it for each connection. On iOS 27 a pending connect can stay unserviced
     /// for tens of minutes - and overnight for hours - while the app is suspended, and is then delivered the instant the app is resumed
-    @objc dynamic var masterBackgroundKeepAliveEnabled: Bool {
-        // default value for bool in userdefaults is false, and this should be enabled by default, so store the inverse
+    /// interval in seconds, 0 means the keep-alive is switched off
+    @objc dynamic var masterBackgroundKeepAliveSeconds: Int {
         get {
-            return !bool(forKey: Key.masterBackgroundKeepAliveEnabled.rawValue)
+            // if the key was never set then use the default, which keeps readings coming at a moderate battery cost
+            guard object(forKey: Key.masterBackgroundKeepAliveSeconds.rawValue) != nil else { return ConstantsSuspensionPrevention.intervalMasterDefault }
+
+            return integer(forKey: Key.masterBackgroundKeepAliveSeconds.rawValue)
         }
         set {
-            set(!newValue, forKey: Key.masterBackgroundKeepAliveEnabled.rawValue)
+            set(newValue, forKey: Key.masterBackgroundKeepAliveSeconds.rawValue)
         }
     }
 

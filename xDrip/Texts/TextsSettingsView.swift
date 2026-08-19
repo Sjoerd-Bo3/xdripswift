@@ -105,7 +105,19 @@ class Texts_SettingsView {
     }()
 
     static let masterKeepAliveMessage: String = {
-        return NSLocalizedString("settingsviews_masterKeepAliveMessage", tableName: filename, bundle: Bundle.main, value: "Keeps the app awake in the background so that transmitter connections are not delayed by iOS. Disabling this saves battery, but readings can be delayed by many minutes, especially overnight.", comment: "data source settings, master mode, explanation of background keep alive")
+        return NSLocalizedString("settingsviews_masterKeepAliveMessage", tableName: filename, bundle: Bundle.main, value: "Keeps the app awake in the background so that transmitter connections are not delayed by iOS. A longer interval uses less battery. If the interval turns out to be too long the app falls back to 5 seconds by itself. Switching this off saves the most battery, but readings can then be delayed by many minutes, especially overnight.", comment: "data source settings, master mode, explanation of background keep alive")
+    }()
+
+    static let masterKeepAliveDisabled: String = {
+        return NSLocalizedString("settingsviews_masterKeepAliveDisabled", tableName: filename, bundle: Bundle.main, value: "Disabled", comment: "data source settings, master mode, background keep alive switched off")
+    }()
+
+    static let masterKeepAliveSecondsShort: String = {
+        return NSLocalizedString("settingsviews_masterKeepAliveSecondsShort", tableName: filename, bundle: Bundle.main, value: "seconds", comment: "data source settings, master mode, unit for the background keep alive interval")
+    }()
+
+    static let masterKeepAliveInvalidValue: String = {
+        return NSLocalizedString("settingsviews_masterKeepAliveInvalidValue", tableName: filename, bundle: Bundle.main, value: "Enter a whole number of seconds between %1$@ and %2$@, or 0 to switch the keep-alive off.", comment: "data source settings, master mode, shown when the entered keep alive interval is not usable")
     }()
 
     static let followerKeepAliveTypeDisabled: String = {

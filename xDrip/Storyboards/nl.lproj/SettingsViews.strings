@@ -229,7 +229,16 @@
 "settingsviews_labelMasterKeepAlive" = "Actief houden op achtergrond";
 
 /// data source settings, master mode, explanation of background keep alive
-"settingsviews_masterKeepAliveMessage" = "Houdt de app wakker op de achtergrond zodat verbindingen met de zender niet door iOS worden uitgesteld. Uitzetten scheelt batterij, maar metingen kunnen dan vele minuten te laat komen, vooral 's nachts.";
+"settingsviews_masterKeepAliveMessage" = "Houdt de app wakker op de achtergrond zodat verbindingen met de zender niet door iOS worden uitgesteld. Een langer interval kost minder batterij. Blijkt het interval te lang, dan valt de app vanzelf terug naar 5 seconden. Helemaal uitzetten scheelt de meeste batterij, maar metingen kunnen dan vele minuten te laat komen, vooral 's nachts.";
+
+/// data source settings, master mode, background keep alive switched off
+"settingsviews_masterKeepAliveDisabled" = "Uit";
+
+/// data source settings, master mode, unit for the background keep alive interval
+"settingsviews_masterKeepAliveSecondsShort" = "seconden";
+
+/// data source settings, master mode, shown when the entered keep alive interval is not usable
+"settingsviews_masterKeepAliveInvalidValue" = "Voer een heel aantal seconden in tussen %1$@ en %2$@, of 0 om het actief houden uit te zetten.";
 
 /// this setting is required
 "settingsviews_valueIsRequired" = "⚠️ Required";

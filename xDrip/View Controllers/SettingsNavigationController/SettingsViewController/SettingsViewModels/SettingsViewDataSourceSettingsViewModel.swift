@@ -285,9 +285,31 @@ class SettingsViewDataSourceSettingsViewModel: NSObject, SettingsViewModelProtoc
             }
             
         case .followerExtraRow3:
-            // in master mode this row is a switch, tapping it just explains what the switch does
+            // in master mode this row asks for the interval in seconds, so a longer one can be tried without rebuilding the app
             if UserDefaults.standard.isMaster {
-                return .showInfoText(title: Texts_SettingsView.labelMasterKeepAlive, message: "\n" + Texts_SettingsView.masterKeepAliveMessage)
+                let currentSeconds = UserDefaults.standard.masterBackgroundKeepAliveSeconds
+
+                return .askText(title: Texts_SettingsView.labelMasterKeepAlive, message: Texts_SettingsView.masterKeepAliveMessage, keyboardType: .numberPad, text: currentSeconds.description, placeHolder: ConstantsSuspensionPrevention.intervalMasterDefault.description, actionTitle: nil, cancelTitle: nil, actionHandler: { (text: String) in
+
+                    guard let newSeconds = Int(text.trimmingCharacters(in: .whitespaces)) else { return }
+
+                    guard newSeconds != currentSeconds else { return }
+
+                    trace("master background keep-alive interval was changed from %{public}d to %{public}d seconds", log: self.log, category: ConstantsLog.categorySettingsViewDataSourceSettingsViewModel, type: .info, currentSeconds, newSeconds)
+
+                    UserDefaults.standard.masterBackgroundKeepAliveSeconds = newSeconds
+
+                }, cancelHandler: nil, inputValidator: { (text: String) in
+
+                    // 0 switches the keep-alive off, anything else has to be a whole number within the supported range
+                    guard let seconds = Int(text.trimmingCharacters(in: .whitespaces)),
+                          seconds == 0 || (seconds >= ConstantsSuspensionPrevention.intervalMasterMinimum && seconds <= ConstantsSuspensionPrevention.intervalMasterMaximum) else {
+
+                        return String(format: Texts_SettingsView.masterKeepAliveInvalidValue, ConstantsSuspensionPrevention.intervalMasterMinimum.description, ConstantsSuspensionPrevention.intervalMasterMaximum.description)
+                    }
+
+                    return nil
+                })
             }
 
             // data to be displayed in list from which user needs to pick a follower keep-alive type
@@ -647,11 +669,7 @@ class SettingsViewDataSourceSettingsViewModel: NSObject, SettingsViewModelProtoc
         case .followerExtraRow10:
             return UserDefaults.standard.activeSensorStartDate != nil ? .disclosureIndicator : .none
             
-        case .followerExtraRow3:
-            // in master mode this row carries a switch, not a sub-list
-            return UserDefaults.standard.isMaster ? .none : .disclosureIndicator
-
-        case .followerExtraRow4, .followerExtraRow7, .followerExtraRow8:
+        case .followerExtraRow3, .followerExtraRow4, .followerExtraRow7, .followerExtraRow8:
             return .disclosureIndicator
         }
     }
@@ -670,7 +688,13 @@ class SettingsViewDataSourceSettingsViewModel: NSObject, SettingsViewModelProtoc
             return UserDefaults.standard.isMaster ? (UserDefaults.standard.nightscoutEnabled ? nil : Texts_SettingsView.nightscoutNotEnabledRowText) : UserDefaults.standard.followerPatientName ?? nil
             
         case .followerExtraRow3:
-            return UserDefaults.standard.isMaster ? nil : UserDefaults.standard.followerBackgroundKeepAliveType.description
+            if UserDefaults.standard.isMaster {
+                let seconds = UserDefaults.standard.masterBackgroundKeepAliveSeconds
+
+                return seconds > 0 ? seconds.description + " " + Texts_SettingsView.masterKeepAliveSecondsShort : Texts_SettingsView.masterKeepAliveDisabled
+            }
+
+            return UserDefaults.standard.followerBackgroundKeepAliveType.description
             
         case .followerExtraRow4:
             return UserDefaults.standard.followerDataSourceType.description
@@ -861,15 +885,7 @@ class SettingsViewDataSourceSettingsViewModel: NSObject, SettingsViewModelProtoc
                 UserDefaults.standard.activeSensorMaxSensorAgeInDays = UserDefaults.standard.libreLinkUpIs15DaySensor ? ConstantsLibreLinkUp.libreLinkUpMaxSensorAgeInDaysLibrePlus : ConstantsLibreLinkUp.libreLinkUpMaxSensorAgeInDays
             })
 
-        case .followerExtraRow3:
-            guard UserDefaults.standard.isMaster else { return nil }
-
-            return UISwitch(isOn: UserDefaults.standard.masterBackgroundKeepAliveEnabled, action: { (isOn: Bool) in
-                trace("masterBackgroundKeepAliveEnabled changed by user to %{public}@", log: self.log, category: ConstantsLog.categorySettingsViewDataSourceSettingsViewModel, type: .info, isOn.description)
-                UserDefaults.standard.masterBackgroundKeepAliveEnabled = isOn
-            })
-
-        case .bloodGlucoseUnit, .masterFollower, .followerExtraRow4, .followerExtraRow5, .followerExtraRow7, .followerExtraRow8, .followerExtraRow9, .followerExtraRow10, .followerExtraRow11:
+        case .bloodGlucoseUnit, .masterFollower, .followerExtraRow3, .followerExtraRow4, .followerExtraRow5, .followerExtraRow7, .followerExtraRow8, .followerExtraRow9, .followerExtraRow10, .followerExtraRow11:
             return nil
         }
     }

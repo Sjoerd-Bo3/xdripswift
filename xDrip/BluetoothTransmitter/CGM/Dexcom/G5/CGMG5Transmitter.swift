@@ -5,7 +5,12 @@ import os
 class CGMG5Transmitter:BluetoothTransmitter, CGMTransmitter {
 
     // MARK: - public properties
-    
+
+    /// the G5/G6 deliberately disconnects after every reading (see fireflyMessageFlow) and then has nothing to say until it advertises
+    /// again, roughly five minutes later. Reconnecting straight away just gets the connection dropped again within half a second, so back
+    /// off instead of spinning on it.
+    override var useReconnectBackoffAfterUnproductiveConnect: Bool { return true }
+
     /// G5 or G6 transmitter firmware version - only used internally, if nil then it was  never received
     ///
     /// created public because inheriting classes need it
