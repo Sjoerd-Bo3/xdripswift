@@ -106,7 +106,13 @@ func trace(_ message: StaticString, log:OSLog, category: String, type: OSLogType
         }
 
     }
-    
+
+    // if this is a debug level line and debug level lines are not wanted in the trace file nor in NSLog, then nothing below will consume
+    // it - skip the argument formatting, which is a manual string replacement loop that would otherwise run for every dropped line
+    if type == .debug && !UserDefaults.standard.addDebugLevelLogsInTraceFileAndNSLog {
+        return
+    }
+
     // calculate string to log, replacing arguments
     
     var argumentsCounter: Int = 0
