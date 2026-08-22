@@ -358,6 +358,26 @@ class SettingsViewDataSourceSettingsViewModel: NSObject, SettingsViewModelProtoc
             }, cancelHandler: nil, didSelectRowHandler: nil)
             
         case .followerExtraRow4:
+            // in master mode this row picks which mechanism keeps the app alive in the background
+            if UserDefaults.standard.isMaster {
+                let usesLocation = UserDefaults.standard.masterBackgroundKeepAliveUseLocation
+                let data = [Texts_SettingsView.masterKeepAliveMethodAudio, Texts_SettingsView.masterKeepAliveMethodLocation]
+
+                return .selectFromList(title: Texts_SettingsView.labelMasterKeepAliveMethod, data: data, selectedRow: usesLocation ? 1 : 0, actionTitle: nil, cancelTitle: nil, actionHandler: { (index: Int) in
+
+                    let newUsesLocation = index == 1
+
+                    guard newUsesLocation != usesLocation else { return }
+
+                    trace("master background keep-alive method was changed to '%{public}@'", log: self.log, category: ConstantsLog.categorySettingsViewDataSourceSettingsViewModel, type: .info, newUsesLocation ? "location" : "silent audio")
+
+                    UserDefaults.standard.masterBackgroundKeepAliveUseLocation = newUsesLocation
+
+                    self.callMessageHandlerInMainThread(title: Texts_SettingsView.labelMasterKeepAliveMethod, message: "\n" + Texts_SettingsView.masterKeepAliveMethodMessage)
+
+                }, cancelHandler: nil, didSelectRowHandler: nil)
+            }
+
             // Build list from the enabled cases only. This allows for ignored follower types
             let enabled = FollowerDataSourceType.allEnabledCases
             let data = enabled.map { $0.description }
@@ -561,7 +581,7 @@ class SettingsViewDataSourceSettingsViewModel: NSObject, SettingsViewModelProtoc
     func numberOfRows() -> Int {
         // if master is selected then just show these rows and hide the rest
         if UserDefaults.standard.isMaster {
-            return 4
+            return 5
         } else {
             let count = Setting.allCases.count
             
@@ -605,7 +625,7 @@ class SettingsViewDataSourceSettingsViewModel: NSObject, SettingsViewModelProtoc
             return UserDefaults.standard.isMaster ? Texts_SettingsView.labelMasterKeepAlive : Texts_SettingsView.labelfollowerKeepAliveType
             
         case .followerExtraRow4:
-            return Texts_SettingsView.labelFollowerDataSourceType
+            return UserDefaults.standard.isMaster ? Texts_SettingsView.labelMasterKeepAliveMethod : Texts_SettingsView.labelFollowerDataSourceType
             
         case .followerExtraRow5:
             return Texts_SettingsView.followerServiceStatus
@@ -697,6 +717,10 @@ class SettingsViewDataSourceSettingsViewModel: NSObject, SettingsViewModelProtoc
             return UserDefaults.standard.followerBackgroundKeepAliveType.description
             
         case .followerExtraRow4:
+            if UserDefaults.standard.isMaster {
+                return UserDefaults.standard.masterBackgroundKeepAliveUseLocation ? Texts_SettingsView.masterKeepAliveMethodLocation : Texts_SettingsView.masterKeepAliveMethodAudio
+            }
+
             return UserDefaults.standard.followerDataSourceType.description
             
         case .followerExtraRow5:

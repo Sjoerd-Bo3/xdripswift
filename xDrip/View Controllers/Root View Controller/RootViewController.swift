@@ -2,6 +2,7 @@ import UIKit
 import CoreData
 import os
 import CoreBluetooth
+import CoreLocation
 import UserNotifications
 import SwiftCharts
 import HealthKitUI
@@ -488,6 +489,23 @@ final class RootViewController: UIViewController, ObservableObject {
     /// AVAudioPlayer that plays a very short silence, used to stop iOS from suspending the app while in master mode - see enableMasterSuspensionPrevention
     private var masterKeepAliveAudioPlayer: AVAudioPlayer?
 
+    /// which mechanism is currently keeping the app out of suspension in master mode
+    private enum MasterKeepAliveMethod {
+        case audio
+        case location
+    }
+
+    /// the method currently in use. Follows the user setting, but the watchdog can drop it back to audio if the location session fails to
+    /// prevent suspension
+    private var masterKeepAliveActiveMethod: MasterKeepAliveMethod = .audio
+
+    /// location manager for the location based keep-alive. The location itself is never read - the session exists purely so that iOS does
+    /// not suspend the app
+    private var masterKeepAliveLocationManager: CLLocationManager?
+
+    /// CLBackgroundActivitySession for the location based keep-alive, held as Any because the class requires iOS 17
+    private var masterKeepAliveBackgroundActivitySession: Any?
+
     /// timer that triggers the silence playback, only running while the app is in the background
     private var masterKeepAliveTimer: RepeatingTimer?
 
@@ -879,6 +897,9 @@ final class RootViewController: UIViewController, ObservableObject {
 
         // start or stop the master mode keep-alive when the user toggles it
         UserDefaults.standard.addObserver(self, forKeyPath: UserDefaults.Key.masterBackgroundKeepAliveSeconds.rawValue, options: .new, context: nil)
+
+        // start or stop the location based master mode keep-alive when the user changes the method
+        UserDefaults.standard.addObserver(self, forKeyPath: UserDefaults.Key.masterBackgroundKeepAliveUseLocation.rawValue, options: .new, context: nil)
         
         // see if the user has changed the chart x axis timescale
         UserDefaults.standard.addObserver(self, forKeyPath: UserDefaults.KeysCharts.chartWidthInHours.rawValue, options: .new, context: nil)
@@ -1128,6 +1149,28 @@ final class RootViewController: UIViewController, ObservableObject {
             return
         }
 
+        // which method does the user want? The location session class requires iOS 17, on older versions stay on silent audio
+        var methodWanted = MasterKeepAliveMethod.audio
+
+        if UserDefaults.standard.masterBackgroundKeepAliveUseLocation {
+            if #available(iOS 17.0, *) {
+                methodWanted = .location
+            } else {
+                trace("in updateMasterSuspensionPrevention, location keep-alive needs iOS 17 or later, staying on silent audio", log: self.log, category: ConstantsLog.categoryRootView, type: .info)
+            }
+        }
+
+        // switching method tears down what the previous method had running. This also undoes a fallback to audio the watchdog made
+        // earlier, which is what you want if the user is deliberately retrying location.
+        if methodWanted != masterKeepAliveActiveMethod {
+            masterKeepAliveAudioPlayer?.stop()
+            stopMasterKeepAliveLocationSession()
+
+            masterKeepAliveActiveMethod = methodWanted
+
+            trace("in updateMasterSuspensionPrevention, master keep-alive method is now %{public}@", log: self.log, category: ConstantsLog.categoryRootView, type: .info, methodWanted == .location ? "location" : "silent audio")
+        }
+
         // the user may have picked a different interval, in which case the timer has to be rebuilt - a RepeatingTimer's interval is fixed
         // at creation. This also undoes a fallback the watchdog made earlier, which is what you want if the user is deliberately retrying.
         if masterKeepAliveInterval != secondsWanted {
@@ -1148,8 +1191,14 @@ final class RootViewController: UIViewController, ObservableObject {
     /// this mirrors what the follower managers already do, and relies on the 'audio' background mode that is declared in Info.plist
     private func enableMasterSuspensionPrevention() {
 
-        // create the audio player if it doesn't exist yet
-        if masterKeepAliveAudioPlayer == nil {
+        // set up what the chosen method needs. The timer below runs in both cases - in audio mode it plays the silence, in location mode
+        // it is purely the watchdog that detects whether the location session is actually keeping the app out of suspension
+        if masterKeepAliveActiveMethod == .location {
+            startMasterKeepAliveLocationSessionIfNeeded()
+        }
+
+        // create the audio player if it doesn't exist yet - in audio mode
+        if masterKeepAliveActiveMethod == .audio, masterKeepAliveAudioPlayer == nil {
             guard let url = Bundle.main.url(forResource: ConstantsSuspensionPrevention.soundFileName, withExtension: "") else {
                 trace("in enableMasterSuspensionPrevention, could not find sound file %{public}@, keep-alive will not run", log: self.log, category: ConstantsLog.categoryRootView, type: .error, ConstantsSuspensionPrevention.soundFileName)
                 return
@@ -1181,7 +1230,7 @@ final class RootViewController: UIViewController, ObservableObject {
 
             self.masterKeepAliveTimer?.resume()
 
-            if let audioPlayer = self.masterKeepAliveAudioPlayer, !audioPlayer.isPlaying {
+            if self.masterKeepAliveActiveMethod == .audio, let audioPlayer = self.masterKeepAliveAudioPlayer, !audioPlayer.isPlaying {
                 audioPlayer.play()
             }
         })
@@ -1194,7 +1243,10 @@ final class RootViewController: UIViewController, ObservableObject {
         if UIApplication.shared.applicationState != .active {
             masterKeepAliveLastFireDate = Date()
             masterKeepAliveTimer?.resume()
-            masterKeepAliveAudioPlayer?.play()
+
+            if masterKeepAliveActiveMethod == .audio {
+                masterKeepAliveAudioPlayer?.play()
+            }
         }
     }
 
@@ -1210,7 +1262,7 @@ final class RootViewController: UIViewController, ObservableObject {
 
             self.checkMasterKeepAliveWasNotSuspended()
 
-            if let audioPlayer = self.masterKeepAliveAudioPlayer, !audioPlayer.isPlaying {
+            if self.masterKeepAliveActiveMethod == .audio, let audioPlayer = self.masterKeepAliveAudioPlayer, !audioPlayer.isPlaying {
                 audioPlayer.play()
             }
         })
@@ -1222,8 +1274,8 @@ final class RootViewController: UIViewController, ObservableObject {
 
         defer { masterKeepAliveLastFireDate = now }
 
-        // nothing to fall back to if we're already on the short interval
-        guard masterKeepAliveInterval > ConstantsSuspensionPrevention.intervalMasterFallback else { return }
+        // nothing left to fall back to when already on silent audio at the short interval
+        guard masterKeepAliveActiveMethod == .location || masterKeepAliveInterval > ConstantsSuspensionPrevention.intervalMasterFallback else { return }
 
         guard let lastFireDate = masterKeepAliveLastFireDate else { return }
 
@@ -1231,22 +1283,93 @@ final class RootViewController: UIViewController, ObservableObject {
 
         guard secondsSinceLastFire > Double(masterKeepAliveInterval) * ConstantsSuspensionPrevention.masterSuspensionDetectionFactor else { return }
 
-        trace("in checkMasterKeepAliveWasNotSuspended, keep-alive timer fired %{public}d seconds late, so the app was suspended after all. Falling back to an interval of %{public}d seconds", log: self.log, category: ConstantsLog.categoryRootView, type: .error, Int(secondsSinceLastFire), ConstantsSuspensionPrevention.intervalMasterFallback)
+        // the app was suspended in between, so the current method or interval is not keeping it alive on this device
+        if masterKeepAliveActiveMethod == .location {
+            // first line of retreat : the location session did not do its job, go back to silent audio at the same interval
+            trace("in checkMasterKeepAliveWasNotSuspended, keep-alive timer fired %{public}d seconds late, so the location session did not prevent suspension. Falling back to silent audio", log: self.log, category: ConstantsLog.categoryRootView, type: .error, Int(secondsSinceLastFire))
 
-        masterKeepAliveInterval = ConstantsSuspensionPrevention.intervalMasterFallback
+            masterKeepAliveActiveMethod = .audio
+        } else {
+            // second line of retreat : the silence interval is too long, shorten it
+            trace("in checkMasterKeepAliveWasNotSuspended, keep-alive timer fired %{public}d seconds late, so the app was suspended after all. Falling back to an interval of %{public}d seconds", log: self.log, category: ConstantsLog.categoryRootView, type: .error, Int(secondsSinceLastFire), ConstantsSuspensionPrevention.intervalMasterFallback)
 
-        // rebuild the timer with the shorter interval. Deliberately not done here, we are inside the old timer's own event handler
+            masterKeepAliveInterval = ConstantsSuspensionPrevention.intervalMasterFallback
+        }
+
+        // rebuild through enableMasterSuspensionPrevention so the new configuration gets set up completely (audio player, timer, and it
+        // starts right away when in the background). Deliberately not done here, we are inside the old timer's own event handler.
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
 
-            self.masterKeepAliveTimer?.suspend()
-            self.masterKeepAliveTimer = self.makeMasterKeepAliveTimer()
+            self.stopMasterKeepAliveLocationSession()
 
-            if UIApplication.shared.applicationState != .active {
-                self.masterKeepAliveLastFireDate = Date()
-                self.masterKeepAliveTimer?.resume()
-            }
+            self.masterKeepAliveTimer?.suspend()
+            self.masterKeepAliveTimer = nil
+
+            self.enableMasterSuspensionPrevention()
         }
+    }
+
+    /// sets up the location manager and background activity session for the location based keep-alive, if not already running
+    ///
+    /// the configuration is deliberately the coarsest possible : the location itself is never read, stored or shared, the session exists
+    /// purely so that iOS does not suspend the app
+    private func startMasterKeepAliveLocationSessionIfNeeded() {
+
+        if masterKeepAliveLocationManager == nil {
+            let locationManager = CLLocationManager()
+            locationManager.delegate = self
+            locationManager.desiredAccuracy = kCLLocationAccuracyThreeKilometers
+            locationManager.distanceFilter = CLLocationDistanceMax
+            locationManager.pausesLocationUpdatesAutomatically = false
+            locationManager.activityType = .other
+            masterKeepAliveLocationManager = locationManager
+        }
+
+        guard let locationManager = masterKeepAliveLocationManager else { return }
+
+        switch locationManager.authorizationStatus {
+
+        case .notDetermined:
+            trace("in startMasterKeepAliveLocationSessionIfNeeded, requesting location permission", log: self.log, category: ConstantsLog.categoryRootView, type: .info)
+
+            // the delegate callback will start the session once the user has answered
+            locationManager.requestWhenInUseAuthorization()
+
+        case .authorizedWhenInUse, .authorizedAlways:
+            // requires the location entry in UIBackgroundModes, otherwise CoreLocation raises an exception
+            locationManager.allowsBackgroundLocationUpdates = true
+
+            locationManager.startUpdatingLocation()
+
+            if #available(iOS 17.0, *), masterKeepAliveBackgroundActivitySession == nil {
+                masterKeepAliveBackgroundActivitySession = CLBackgroundActivitySession()
+            }
+
+            trace("in startMasterKeepAliveLocationSessionIfNeeded, location keep-alive session running", log: self.log, category: ConstantsLog.categoryRootView, type: .info)
+
+        case .denied, .restricted:
+            trace("in startMasterKeepAliveLocationSessionIfNeeded, location permission denied or restricted, falling back to silent audio", log: self.log, category: ConstantsLog.categoryRootView, type: .error)
+
+            masterKeepAliveActiveMethod = .audio
+
+            enableMasterSuspensionPrevention()
+
+        @unknown default:
+            break
+        }
+    }
+
+    /// tears down the location based keep-alive. Safe to call when it was never running.
+    private func stopMasterKeepAliveLocationSession() {
+
+        if #available(iOS 17.0, *), let session = masterKeepAliveBackgroundActivitySession as? CLBackgroundActivitySession {
+            session.invalidate()
+        }
+
+        masterKeepAliveBackgroundActivitySession = nil
+
+        masterKeepAliveLocationManager?.stopUpdatingLocation()
     }
 
     /// stops the master mode keep-alive
@@ -1261,6 +1384,8 @@ final class RootViewController: UIViewController, ObservableObject {
         masterKeepAliveTimer?.suspend()
 
         masterKeepAliveAudioPlayer?.stop()
+
+        stopMasterKeepAliveLocationSession()
 
         ApplicationManager.shared.removeClosureToRunWhenAppDidEnterBackground(key: applicationManagerKeyResumeMasterKeepAlive)
         ApplicationManager.shared.removeClosureToRunWhenAppWillEnterForeground(key: applicationManagerKeySuspendMasterKeepAlive)
@@ -1768,7 +1893,7 @@ final class RootViewController: UIViewController, ObservableObject {
         }
         
         switch keyPathEnum {
-        case UserDefaults.Key.masterBackgroundKeepAliveSeconds:
+        case UserDefaults.Key.masterBackgroundKeepAliveSeconds, UserDefaults.Key.masterBackgroundKeepAliveUseLocation:
             updateMasterSuspensionPrevention()
 
         case UserDefaults.Key.isMaster:
@@ -4186,3 +4311,35 @@ extension RootViewController: UIGestureRecognizerDelegate {
 // MARK: - conform to ActiveSensorProviding protocol
 
 extension RootViewController: ActiveSensorProviding { }
+
+// MARK: - conform to CLLocationManagerDelegate
+
+extension RootViewController: CLLocationManagerDelegate {
+
+    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+
+        // only relevant while the location based keep-alive is the active method
+        guard masterKeepAliveActiveMethod == .location, masterKeepAliveIsWanted else { return }
+
+        switch manager.authorizationStatus {
+
+        case .authorizedWhenInUse, .authorizedAlways:
+            startMasterKeepAliveLocationSessionIfNeeded()
+
+        case .denied, .restricted:
+            trace("in locationManagerDidChangeAuthorization, location permission denied, master keep-alive falls back to silent audio", log: self.log, category: ConstantsLog.categoryRootView, type: .error)
+
+            masterKeepAliveActiveMethod = .audio
+
+            enableMasterSuspensionPrevention()
+
+        default:
+            break
+        }
+    }
+
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        // the location itself is never used, so a failure to determine it does not matter for the keep-alive
+        trace("in locationManager didFailWithError, %{public}@", log: self.log, category: ConstantsLog.categoryRootView, type: .debug, error.localizedDescription)
+    }
+}

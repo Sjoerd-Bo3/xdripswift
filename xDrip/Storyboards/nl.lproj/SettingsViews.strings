@@ -237,6 +237,18 @@
 /// data source settings, master mode, unit for the background keep alive interval
 "settingsviews_masterKeepAliveSecondsShort" = "seconden";
 
+/// data source settings, master mode, which mechanism keeps the app alive in the background
+"settingsviews_labelMasterKeepAliveMethod" = "Methode actief houden";
+
+/// data source settings, master mode, keep alive by playing silence
+"settingsviews_masterKeepAliveMethodAudio" = "Stille audio";
+
+/// data source settings, master mode, keep alive with a background location session
+"settingsviews_masterKeepAliveMethodLocation" = "Locatie (experimenteel)";
+
+/// data source settings, master mode, explanation of the keep alive methods
+"settingsviews_masterKeepAliveMethodMessage" = "Locatie houdt de app wakker met een zuinige achtergrond-locatiesessie in plaats van het afspelen van stilte, wat aanzienlijk minder batterij kan kosten.\n\nJe locatie wordt nooit gelezen, opgeslagen of gedeeld - de sessie bestaat alleen zodat iOS de app niet in slaap zet. Hiervoor is locatietoestemming nodig ('Bij gebruik van app' is voldoende).\n\nWordt de app toch gesuspendeerd, dan valt hij automatisch terug op stille audio en meldt dat in de probleemrapportage.";
+
 /// data source settings, master mode, shown when the entered keep alive interval is not usable
 "settingsviews_masterKeepAliveInvalidValue" = "Voer een heel aantal seconden in tussen %1$@ en %2$@, of 0 om het actief houden uit te zetten.";
 

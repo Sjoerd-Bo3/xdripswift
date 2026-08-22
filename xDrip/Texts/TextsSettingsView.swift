@@ -116,6 +116,22 @@ class Texts_SettingsView {
         return NSLocalizedString("settingsviews_masterKeepAliveSecondsShort", tableName: filename, bundle: Bundle.main, value: "seconds", comment: "data source settings, master mode, unit for the background keep alive interval")
     }()
 
+    static let labelMasterKeepAliveMethod: String = {
+        return NSLocalizedString("settingsviews_labelMasterKeepAliveMethod", tableName: filename, bundle: Bundle.main, value: "Keep-alive Method", comment: "data source settings, master mode, which mechanism keeps the app alive in the background")
+    }()
+
+    static let masterKeepAliveMethodAudio: String = {
+        return NSLocalizedString("settingsviews_masterKeepAliveMethodAudio", tableName: filename, bundle: Bundle.main, value: "Silent audio", comment: "data source settings, master mode, keep alive by playing silence")
+    }()
+
+    static let masterKeepAliveMethodLocation: String = {
+        return NSLocalizedString("settingsviews_masterKeepAliveMethodLocation", tableName: filename, bundle: Bundle.main, value: "Location (experimental)", comment: "data source settings, master mode, keep alive with a background location session")
+    }()
+
+    static let masterKeepAliveMethodMessage: String = {
+        return NSLocalizedString("settingsviews_masterKeepAliveMethodMessage", tableName: filename, bundle: Bundle.main, value: "Location keeps the app awake with a low-power background location session instead of playing silence, which may use considerably less battery.\n\nYour location is never read, stored or shared - the session only exists so that iOS does not put the app to sleep. This requires location permission ('While Using the App' is enough).\n\nIf the app gets suspended anyway, it automatically falls back to silent audio and notes this in the issue report log.", comment: "data source settings, master mode, explanation of the keep alive methods")
+    }()
+
     static let masterKeepAliveInvalidValue: String = {
         return NSLocalizedString("settingsviews_masterKeepAliveInvalidValue", tableName: filename, bundle: Bundle.main, value: "Enter a whole number of seconds between %1$@ and %2$@, or 0 to switch the keep-alive off.", comment: "data source settings, master mode, shown when the entered keep alive interval is not usable")
     }()
