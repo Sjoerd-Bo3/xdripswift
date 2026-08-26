@@ -23,6 +23,24 @@ DEVICE_NAME = ENV["DEVICE_NAME"]
 DEVICE_ID = ENV["DEVICE_ID"]
 ENV["FASTLANE_XCODEBUILD_SETTINGS_TIMEOUT"] = "120"
 
+# Optional variant suffix for side-by-side installs, e.g. ".left" / ".right".
+# Empty (the default) reproduces the original single "normal" build exactly, so
+# existing builds are unaffected.
+BUNDLE_SUFFIX = ENV["XDRIP_BUNDLE_ID_SUFFIX"] || ""
+
+# The 5 app identifiers for the current (optionally suffixed) variant, in a fixed
+# order: [main app, widget, watch app, watch complication, notification context].
+def xdrip_app_identifiers
+  base = "com.#{TEAMID}.xdripswift#{BUNDLE_SUFFIX}"
+  [
+    base,
+    "#{base}.xDripWidget",
+    "#{base}.watchkitapp",
+    "#{base}.watchkitapp.xDripWatchComplication",
+    "#{base}.xDripNotificationContextExtension"
+  ]
+end
+
 platform :ios do
   desc "Build Xdrip4iOS"
   lane :build_xdrip4ios do
@@ -40,7 +58,7 @@ platform :ios do
     )
 
     previous_build_number = latest_testflight_build_number(
-      app_identifier: "com.#{TEAMID}.xdripswift",
+      app_identifier: xdrip_app_identifiers[0],
       api_key: api_key,
     )
 
@@ -50,21 +68,15 @@ platform :ios do
       xcodeproj: "#{GITHUB_WORKSPACE}/xdrip.xcodeproj",
       build_number: current_build_number
     )
-    
+
     match(
       type: "appstore",
       git_basic_authorization: Base64.strict_encode64("#{GITHUB_REPOSITORY_OWNER}:#{GH_PAT}"),
-      app_identifier: [
-        "com.#{TEAMID}.xdripswift",
-        "com.#{TEAMID}.xdripswift.xDripWidget",
-        "com.#{TEAMID}.xdripswift.watchkitapp",
-        "com.#{TEAMID}.xdripswift.watchkitapp.xDripWatchComplication",
-        "com.#{TEAMID}.xdripswift.xDripNotificationContextExtension"
-      ]
+      app_identifier: xdrip_app_identifiers
     )
 
     previous_build_number = latest_testflight_build_number(
-      app_identifier: "com.#{TEAMID}.xdripswift",
+      app_identifier: xdrip_app_identifiers[0],
       api_key: api_key,
     )
 
@@ -81,35 +93,35 @@ platform :ios do
 
     update_code_signing_settings(
       path: "#{GITHUB_WORKSPACE}/xdrip.xcodeproj",
-      profile_name: mapping["com.#{TEAMID}.xdripswift"],
+      profile_name: mapping[xdrip_app_identifiers[0]],
       code_sign_identity: "iPhone Distribution",
       targets: ["xdrip"]
     )
 
     update_code_signing_settings(
       path: "#{GITHUB_WORKSPACE}/xdrip.xcodeproj",
-      profile_name: mapping["com.#{TEAMID}.xdripswift.xDripWidget"],
+      profile_name: mapping[xdrip_app_identifiers[1]],
       code_sign_identity: "iPhone Distribution",
       targets: ["xDrip Widget Extension"]
     )
-    
+
     update_code_signing_settings(
       path: "#{GITHUB_WORKSPACE}/xdrip.xcodeproj",
-      profile_name: mapping["com.#{TEAMID}.xdripswift.watchkitapp"],
+      profile_name: mapping[xdrip_app_identifiers[2]],
       code_sign_identity: "iPhone Distribution",
       targets: ["xDrip Watch App"]
     )
-    
+
     update_code_signing_settings(
       path: "#{GITHUB_WORKSPACE}/xdrip.xcodeproj",
-      profile_name: mapping["com.#{TEAMID}.xdripswift.watchkitapp.xDripWatchComplication"],
+      profile_name: mapping[xdrip_app_identifiers[3]],
       code_sign_identity: "iPhone Distribution",
       targets: ["xDrip Watch Complication Extension"]
     )
-    
+
     update_code_signing_settings(
       path: "#{GITHUB_WORKSPACE}/xdrip.xcodeproj",
-      profile_name: mapping["com.#{TEAMID}.xdripswift.xDripNotificationContextExtension"],
+      profile_name: mapping[xdrip_app_identifiers[4]],
       code_sign_identity: "iPhone Distribution",
       targets: ["xDrip Notification Context Extension"]
     )
@@ -168,29 +180,41 @@ platform :ios do
       end
     end
 
-    configure_bundle_id("xdrip", "com.#{TEAMID}.xdripswift", [
+    ids = xdrip_app_identifiers
+    # Suffix the visible names too so variant identifiers are easy to tell apart
+    # in the Apple Developer portal (e.g. "xdrip .left").
+    # Apple app-id NAMES allow only alphanumerics and spaces (no dots), so strip
+    # the dot from the suffix here. The bundle *identifier* keeps its dots.
+    name_suffix = BUNDLE_SUFFIX.empty? ? "" : " #{BUNDLE_SUFFIX.delete('.')}"
+
+    configure_bundle_id("xdrip#{name_suffix}", ids[0], [
       Spaceship::ConnectAPI::BundleIdCapability::Type::APP_GROUPS,
       Spaceship::ConnectAPI::BundleIdCapability::Type::HEALTHKIT,
       Spaceship::ConnectAPI::BundleIdCapability::Type::NFC_TAG_READING
     ])
 
-    configure_bundle_id("xDrip Widget Extension", "com.#{TEAMID}.xdripswift.xDripWidget", [
+    configure_bundle_id("xDrip Widget Extension#{name_suffix}", ids[1], [
       Spaceship::ConnectAPI::BundleIdCapability::Type::APP_GROUPS
     ])
-    
-    configure_bundle_id("xDrip Watch App", "com.#{TEAMID}.xdripswift.watchkitapp", [
+
+    configure_bundle_id("xDrip Watch App#{name_suffix}", ids[2], [
       Spaceship::ConnectAPI::BundleIdCapability::Type::APP_GROUPS
     ])
-    
-    configure_bundle_id("xDrip Watch Complication Extension", "com.#{TEAMID}.xdripswift.watchkitapp.xDripWatchComplication", [
+
+    configure_bundle_id("xDrip Watch Complication Extension#{name_suffix}", ids[3], [
       Spaceship::ConnectAPI::BundleIdCapability::Type::APP_GROUPS
     ])
-    
-    configure_bundle_id("xDrip Notification Context Extension", "com.#{TEAMID}.xdripswift.xDripNotificationContextExtension", [
+
+    configure_bundle_id("xDrip Notification Context Extension#{name_suffix}", ids[4], [
       Spaceship::ConnectAPI::BundleIdCapability::Type::APP_GROUPS
     ])
-    
-    
+
+    # NOTE: the App Store Connect app record must be created by hand (App Store
+    # Connect -> Apps -> +). Apple's App Store Connect API cannot create app
+    # records, and fastlane's `produce` falls back to Apple-ID (username) auth,
+    # which the API-key-only browser build does not have. So there is no reliable
+    # way to auto-create the record here.
+
   end
 
   desc "Provision Certificates"
@@ -208,13 +232,7 @@ platform :ios do
       type: "appstore",
       force: true,
       git_basic_authorization: Base64.strict_encode64("#{GITHUB_REPOSITORY_OWNER}:#{GH_PAT}"),
-      app_identifier: [
-        "com.#{TEAMID}.xdripswift",
-        "com.#{TEAMID}.xdripswift.xDripWidget",
-        "com.#{TEAMID}.xdripswift.watchkitapp",
-        "com.#{TEAMID}.xdripswift.watchkitapp.xDripWatchComplication",
-        "com.#{TEAMID}.xdripswift.xDripNotificationContextExtension"
-      ]
+      app_identifier: xdrip_app_identifiers
     )
   end
 
