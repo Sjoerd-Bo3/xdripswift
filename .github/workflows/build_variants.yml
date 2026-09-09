@@ -75,8 +75,8 @@ jobs:
         id: gate
         run: |
           WANT="${{ inputs.variants }}"
-          # On a push (no inputs), build only the left variant for the vanilla test.
-          if [ -z "$WANT" ] && [ "${{ github.event_name }}" = "push" ]; then WANT="left"; fi
+          # On a push (no inputs), build only the right variant (left was built on the previous push).
+          if [ -z "$WANT" ] && [ "${{ github.event_name }}" = "push" ]; then WANT="right"; fi
           if [ -z "$WANT" ] || printf '%s' ",$WANT," | grep -q ",${{ matrix.variant }},"; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
